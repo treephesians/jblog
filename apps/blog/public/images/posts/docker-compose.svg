@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#0ea5e9;stop-opacity:0.25"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg2)"/>
+  <!-- Compose containers -->
+  <g transform="translate(280,120)" opacity="0.5">
+    <rect x="0" y="0" width="100" height="70" rx="12" fill="#3b82f6" stroke="#3b82f6" stroke-width="2" fill-opacity="0.3"/>
+    <rect x="130" y="0" width="100" height="70" rx="12" fill="#0ea5e9" stroke="#0ea5e9" stroke-width="2" fill-opacity="0.3"/>
+    <rect x="65" y="100" width="100" height="70" rx="12" fill="#06b6d4" stroke="#06b6d4" stroke-width="2" fill-opacity="0.3"/>
+    <!-- Connection lines -->
+    <line x1="50" y1="70" x2="115" y2="100" stroke="#3b82f6" stroke-width="2" opacity="0.4"/>
+    <line x1="180" y1="70" x2="115" y2="100" stroke="#0ea5e9" stroke-width="2" opacity="0.4"/>
+    <!-- Labels -->
+    <text x="50" y="42" text-anchor="middle" font-family="system-ui" font-size="14" fill="#3b82f6" opacity="0.8">Web</text>
+    <text x="180" y="42" text-anchor="middle" font-family="system-ui" font-size="14" fill="#0ea5e9" opacity="0.8">API</text>
+    <text x="115" y="142" text-anchor="middle" font-family="system-ui" font-size="14" fill="#06b6d4" opacity="0.8">DB</text>
+  </g>
+  <!-- Decorative -->
+  <circle cx="680" cy="100" r="50" fill="#3b82f6" opacity="0.06"/>
+  <circle cx="100" cy="350" r="45" fill="#0ea5e9" opacity="0.06"/>
+</svg>

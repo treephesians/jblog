@@ -1,0 +1,62 @@
+---
+title: "Docker 시작하기: 컨테이너의 기본 개념"
+description: "Docker의 핵심 개념과 기본 명령어를 알아봅니다. 이미지, 컨테이너, Dockerfile 작성법까지 한번에 정리합니다."
+date: "2026-02-01"
+category: "DevOps"
+tags: ["docker", "container", "devops"]
+thumbnail: "/images/posts/docker-basics.svg"
+featured: true
+series:
+  name: "Docker 완전 정복"
+  order: 1
+---
+
+## Docker란?
+
+Docker는 애플리케이션을 **컨테이너**라는 격리된 환경에서 실행할 수 있게 해주는 플랫폼입니다.
+
+> 컨테이너는 가상 머신보다 가볍고 빠르며, 어디서든 동일한 환경을 보장합니다.
+
+## 핵심 개념
+
+### 이미지 (Image)
+
+이미지는 컨테이너를 만들기 위한 읽기 전용 템플릿입니다.
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json .
+RUN npm install
+COPY . .
+CMD ["npm", "start"]
+```
+
+### 컨테이너 (Container)
+
+컨테이너는 이미지의 실행 인스턴스입니다.
+
+```bash
+# 컨테이너 실행
+docker run -d -p 3000:3000 my-app
+
+# 실행 중인 컨테이너 확인
+docker ps
+
+# 컨테이너 로그 확인
+docker logs my-app
+```
+
+## 기본 명령어 정리
+
+| 명령어 | 설명 |
+|--------|------|
+| `docker build` | 이미지 빌드 |
+| `docker run` | 컨테이너 실행 |
+| `docker ps` | 실행 중인 컨테이너 목록 |
+| `docker stop` | 컨테이너 중지 |
+| `docker rm` | 컨테이너 삭제 |
+
+## 다음 단계
+
+다음 글에서는 **Docker Compose**를 사용해 멀티 컨테이너 환경을 구성하는 방법을 알아봅니다.

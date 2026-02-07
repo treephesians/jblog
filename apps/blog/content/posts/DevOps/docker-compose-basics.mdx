@@ -1,0 +1,65 @@
+---
+title: "Docker Compose로 멀티 컨테이너 관리하기"
+description: "Docker Compose를 활용해 여러 서비스를 한번에 관리하는 방법을 알아봅니다."
+date: "2026-02-03"
+category: "DevOps"
+tags: ["docker", "docker-compose", "devops"]
+thumbnail: "/images/posts/docker-compose.svg"
+series:
+  name: "Docker 완전 정복"
+  order: 2
+---
+
+## Docker Compose란?
+
+Docker Compose는 여러 컨테이너를 **하나의 YAML 파일**로 정의하고 관리하는 도구입니다.
+
+## docker-compose.yml 작성
+
+```yaml
+services:
+  web:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_USER=user
+      - POSTGRES_DB=mydb
+
+volumes:
+  pgdata:
+```
+
+## 주요 명령어
+
+```bash
+# 전체 서비스 시작
+docker compose up -d
+
+# 로그 확인
+docker compose logs -f
+
+# 서비스 중지 및 삭제
+docker compose down
+```
+
+## 다음 단계
+
+다음 글에서는 **Kubernetes**로 컨테이너 오케스트레이션을 하는 방법을 알아봅니다.

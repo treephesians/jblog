@@ -128,4 +128,35 @@
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, h5, h6 {
+    scroll-margin-top: 5rem;
+  }
+}
+
+/* rehype-pretty-code: dual theme support */
+[data-rehype-pretty-code-figure] pre {
+  @apply px-4 py-3 rounded-lg text-sm overflow-x-auto my-4;
+}
+
+[data-rehype-pretty-code-figure] code {
+  @apply grid;
+}
+
+[data-rehype-pretty-code-figure] code [data-line] {
+  @apply px-1;
+}
+
+[data-rehype-pretty-code-figure] [data-line-numbers] [data-line]::before {
+  @apply text-muted-foreground mr-4 inline-block w-4 text-right;
+  content: counter(line);
+  counter-increment: line;
+}
+
+[data-rehype-pretty-code-figure] [data-line-numbers] {
+  counter-reset: line;
+}
+
+html:not(.dark) [data-theme="dark"],
+html.dark [data-theme="light"] {
+  display: none;
 }

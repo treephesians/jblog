@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Header } from "@repo/ui/header";
-import { Footer } from "@repo/ui/footer";
-import { ThemeProvider } from "../components/theme-provider";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
+import { ThemeProvider } from "@/components/layout/theme-provider";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -31,7 +31,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <Header />
-          <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
+          <main className="px-6 py-8">{children}</main>
           <Footer />
         </ThemeProvider>
       </body>

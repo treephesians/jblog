@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg3)"/>
+  <!-- Next.js N shape -->
+  <g transform="translate(340,130)" opacity="0.5">
+    <path d="M0,0 L0,180 M0,0 L100,180 M100,0 L100,180" stroke="#8b5cf6" stroke-width="16" stroke-linecap="round" fill="none"/>
+  </g>
+  <!-- Route tree -->
+  <g transform="translate(520,160)" opacity="0.35">
+    <line x1="0" y1="0" x2="0" y2="40" stroke="#ec4899" stroke-width="2"/>
+    <line x1="0" y1="40" x2="-30" y2="70" stroke="#ec4899" stroke-width="2"/>
+    <line x1="0" y1="40" x2="30" y2="70" stroke="#ec4899" stroke-width="2"/>
+    <line x1="-30" y1="70" x2="-50" y2="100" stroke="#ec4899" stroke-width="2"/>
+    <line x1="-30" y1="70" x2="-10" y2="100" stroke="#ec4899" stroke-width="2"/>
+    <circle cx="0" cy="0" r="6" fill="#8b5cf6"/>
+    <circle cx="0" cy="40" r="5" fill="#a855f7"/>
+    <circle cx="-30" cy="70" r="5" fill="#c084fc"/>
+    <circle cx="30" cy="70" r="5" fill="#c084fc"/>
+    <circle cx="-50" cy="100" r="4" fill="#ec4899"/>
+    <circle cx="-10" cy="100" r="4" fill="#ec4899"/>
+  </g>
+  <!-- Decorative -->
+  <circle cx="100" cy="80" r="35" fill="#8b5cf6" opacity="0.07"/>
+  <circle cx="700" cy="370" r="55" fill="#ec4899" opacity="0.07"/>
+</svg>
