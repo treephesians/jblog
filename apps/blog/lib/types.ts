@@ -20,3 +20,5 @@ export interface Post {
   content: string;
   readingTime: string;
 }
+
+export type SearchablePost = Omit<Post, "content">;

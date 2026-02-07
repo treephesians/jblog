@@ -105,3 +105,26 @@ export function getAllSeries(): string[] {
     .filter((name): name is string => !!name);
   return [...new Set(series)];
 }
+
+export interface SeriesMeta {
+  name: string;
+  postCount: number;
+  thumbnail?: string;
+  latestDate: string;
+}
+
+export function getAllSeriesWithMeta(): SeriesMeta[] {
+  return getAllSeries().map((name) => {
+    const posts = getPostsBySeries(name);
+    const latestDate = posts
+      .map((p) => p.frontmatter.date)
+      .sort()
+      .reverse()[0]!;
+    return {
+      name,
+      postCount: posts.length,
+      thumbnail: posts[0]?.frontmatter.thumbnail,
+      latestDate,
+    };
+  });
+}

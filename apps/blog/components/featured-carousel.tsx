@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { CategoryBadge } from "@/components/category-badge";
 import {
   Carousel,
@@ -54,7 +55,7 @@ export function FeaturedCarousel({ posts }: { posts: FeaturedPost[] }) {
       <CarouselContent>
         {posts.map((post) => (
           <CarouselItem key={post.slug}>
-            <a href={`/article/${post.slug}`} className="block">
+            <Link href={`/article/${post.slug}`} className="block">
               <div className="relative rounded-3xl overflow-hidden aspect-[2.4/1]">
                 {post.frontmatter.thumbnail ? (
                   <Image
@@ -81,7 +82,7 @@ export function FeaturedCarousel({ posts }: { posts: FeaturedPost[] }) {
                   </p>
                 </div>
               </div>
-            </a>
+            </Link>
           </CarouselItem>
         ))}
       </CarouselContent>

@@ -29,7 +29,7 @@ export function TableOfContents() {
           }
         });
       },
-      { rootMargin: "0px 0px -80% 0px" }
+      { rootMargin: "0px 0px -80% 0px" },
     );
 
     elements.forEach((el) => observer.observe(el));
@@ -39,8 +39,7 @@ export function TableOfContents() {
   if (headings.length === 0) return null;
 
   return (
-    <nav className="space-y-1 text-sm">
-      <p className="font-semibold mb-2">Table of Contents</p>
+    <nav className="space-y-1.5 text-sm border-l border-muted-foreground/40 pl-4">
       {headings.map((heading) => (
         <button
           key={heading.id}

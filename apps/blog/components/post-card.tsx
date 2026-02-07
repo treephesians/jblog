@@ -1,11 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardContent } from "@repo/ui/card";
 import { CategoryBadge } from "@/components/category-badge";
-import type { Post } from "@/lib/types";
+import type { SearchablePost } from "@/lib/types";
 
-export function PostCard({ post }: { post: Post }) {
+export function PostCard({ post }: { post: SearchablePost }) {
   return (
-    <a href={`/article/${post.slug}`} className="group block">
+    <Link href={`/article/${post.slug}`} className="group block">
       <Card className="overflow-hidden border-0 shadow-none bg-transparent gap-0 py-0">
         <div className="aspect-video rounded-2xl overflow-hidden bg-muted">
           {post.frontmatter.thumbnail ? (
@@ -14,7 +15,7 @@ export function PostCard({ post }: { post: Post }) {
               alt={post.frontmatter.title}
               width={800}
               height={450}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-120 transition-transform duration-200"
             />
           ) : (
             <div className="w-full h-full bg-linear-to-br from-muted to-muted-foreground/10" />
@@ -33,6 +34,6 @@ export function PostCard({ post }: { post: Post }) {
           </p>
         </CardContent>
       </Card>
-    </a>
+    </Link>
   );
 }
