@@ -12,7 +12,7 @@ export default function Home() {
   const rest = posts.filter((post) => !featuredSlugs.has(post.slug));
 
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div className="mx-auto max-w-[1000px]">
       {featured.length > 0 && (
         <section className="mb-16">
           <FeaturedCarousel posts={featured} />

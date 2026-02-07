@@ -42,10 +42,17 @@ export function TableOfContents() {
     <nav className="space-y-1 text-sm">
       <p className="font-semibold mb-2">Table of Contents</p>
       {headings.map((heading) => (
-        <a
+        <button
           key={heading.id}
-          href={`#${heading.id}`}
-          className={`block transition-colors hover:text-foreground ${
+          type="button"
+          onClick={() => {
+            const el = document.getElementById(heading.id);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth" });
+              history.replaceState(null, "", `#${heading.id}`);
+            }
+          }}
+          className={`block text-left transition-colors hover:text-foreground ${
             heading.level === 3 ? "pl-4" : ""
           } ${
             activeId === heading.id
@@ -54,7 +61,7 @@ export function TableOfContents() {
           }`}
         >
           {heading.text}
-        </a>
+        </button>
       ))}
     </nav>
   );

@@ -17,7 +17,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="mx-auto max-w-[1200px] px-6 h-16 flex items-center justify-between">
+      <div className="mx-auto max-w-[1000px] h-16 flex items-center justify-between">
         <Link href="/">
           <span className="text-xl font-bold tracking-tight">jblog</span>
         </Link>

@@ -136,10 +136,23 @@
 /* rehype-pretty-code: dual theme support */
 [data-rehype-pretty-code-figure] pre {
   @apply px-4 py-3 rounded-lg text-sm overflow-x-auto my-4;
+  background-color: #f6f8fa;
+}
+
+.dark [data-rehype-pretty-code-figure] pre {
+  background-color: #24292e;
 }
 
 [data-rehype-pretty-code-figure] code {
   @apply grid;
+}
+
+[data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-light);
+}
+
+.dark [data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-dark);
 }
 
 [data-rehype-pretty-code-figure] code [data-line] {
@@ -154,9 +167,4 @@
 
 [data-rehype-pretty-code-figure] [data-line-numbers] {
   counter-reset: line;
-}
-
-html:not(.dark) [data-theme="dark"],
-html.dark [data-theme="light"] {
-  display: none;
 }
