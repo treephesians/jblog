@@ -7,6 +7,11 @@ export const siteConfig = {
   author: {
     name: "Junbeom",
   },
+  links: {
+    github: "https://github.com/treephesians",
+    linkedin: "https://linkedin.com/in/junbeom-park-612504388",
+    email: "mailto:junbum980623@gmail.com",
+  },
   locale: "ko_KR",
   language: "ko",
 };

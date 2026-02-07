@@ -114,6 +114,9 @@ importers:
       shadcn:
         specifier: ^3.8.4
         version: 3.8.4(@types/node@22.15.3)(typescript@5.9.2)
+      simple-icons:
+        specifier: ^16.7.0
+        version: 16.7.0
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -3716,6 +3719,10 @@ packages:
   signal-exit@4.1.0:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
+
+  simple-icons@16.7.0:
+    resolution: {integrity: sha512-2BteuQXu1+/jK5dF8YXe8nwoRG3afwl03bCmgPJLiotllUBU46B+WntXT731Z17oOntfV5eeTI7Q1k7MeOA6eg==}
+    engines: {node: '>=0.12.18'}
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
@@ -8472,6 +8479,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  simple-icons@16.7.0: {}
 
   sisteransi@1.0.5: {}
 
