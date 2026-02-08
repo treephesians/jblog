@@ -89,6 +89,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
