@@ -7,6 +7,7 @@ export interface PostFrontmatter {
   tags: string[];
   series?: {
     name: string;
+    slug: string;
     order: number;
   };
   thumbnail?: string;

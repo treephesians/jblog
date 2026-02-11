@@ -89,6 +89,15 @@ export function getPostsBySeries(seriesName: string): Post[] {
     );
 }
 
+export function getSeriesNameBySlug(slug: string): string | undefined {
+  const posts = getAllPosts();
+  for (const post of posts) {
+    const s = post.frontmatter.series;
+    if (s?.slug === slug) return s.name;
+  }
+  return undefined;
+}
+
 export function getAllCategories(): string[] {
   const categories = getAllPosts().map((post) => post.frontmatter.category);
   return [...new Set(categories)];
@@ -108,6 +117,7 @@ export function getAllSeries(): string[] {
 
 export interface SeriesMeta {
   name: string;
+  slug: string;
   postCount: number;
   thumbnail?: string;
   latestDate: string;
@@ -122,6 +132,7 @@ export function getAllSeriesWithMeta(): SeriesMeta[] {
       .reverse()[0]!;
     return {
       name,
+      slug: posts[0]!.frontmatter.series!.slug!,
       postCount: posts.length,
       thumbnail: posts[0]?.frontmatter.thumbnail,
       latestDate,

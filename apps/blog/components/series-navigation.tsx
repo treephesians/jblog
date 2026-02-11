@@ -23,7 +23,7 @@ export function SeriesNavigation({
     <nav className="mt-12 rounded-xl border p-6 space-y-4">
       <div className="flex items-center justify-between">
         <Link
-          href={`/series/${encodeURIComponent(series.name)}`}
+          href={`/series/${series.slug}`}
           className="font-semibold hover:text-primary transition-colors"
         >
           {series.name}

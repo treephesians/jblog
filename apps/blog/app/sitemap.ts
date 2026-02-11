@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getAllPosts, getAllSeries } from "@/lib/content";
+import { getAllPosts, getAllSeriesWithMeta } from "@/lib/content";
 import { siteConfig } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -10,8 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  const series = getAllSeries().map((name) => ({
-    url: `${siteConfig.url}/series/${encodeURIComponent(name)}`,
+  const series = getAllSeriesWithMeta().map((s) => ({
+    url: `${siteConfig.url}/series/${s.slug}`,
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));

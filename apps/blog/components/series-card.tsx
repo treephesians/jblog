@@ -6,7 +6,7 @@ import Link from "next/link";
 export function SeriesCard({ series }: { series: SeriesMeta }) {
   return (
     <Link
-      href={`/series/${encodeURIComponent(series.name)}`}
+      href={`/series/${series.slug}`}
       className="group block"
     >
       <div className="relative rounded-2xl overflow-hidden aspect-video">

@@ -1,39 +1,45 @@
 import { notFound } from "next/navigation";
-import { getPostsBySeries, getAllSeries } from "@/lib/content";
+import {
+  getPostsBySeries,
+  getAllSeriesWithMeta,
+  getSeriesNameBySlug,
+} from "@/lib/content";
 import { PostCard } from "@/components/post-card";
 
 export function generateStaticParams() {
-  return getAllSeries().map((name) => ({ name: encodeURIComponent(name) }));
+  return getAllSeriesWithMeta().map((s) => ({ slug: s.slug }));
 }
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ name: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { name } = await params;
-  const decoded = decodeURIComponent(name);
+  const { slug } = await params;
+  const seriesName = getSeriesNameBySlug(slug);
+  if (!seriesName) return { title: "Series Not Found" };
   return {
-    title: `${decoded} 시리즈`,
-    description: `${decoded} 연재 시리즈`,
+    title: `${seriesName} 시리즈`,
+    description: `${seriesName} 연재 시리즈`,
   };
 }
 
 export default async function SeriesDetailPage({
   params,
 }: {
-  params: Promise<{ name: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { name } = await params;
-  const decoded = decodeURIComponent(name);
-  const posts = getPostsBySeries(decoded);
+  const { slug } = await params;
+  const seriesName = getSeriesNameBySlug(slug);
+  if (!seriesName) notFound();
 
+  const posts = getPostsBySeries(seriesName);
   if (posts.length === 0) notFound();
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-16">
       <section className="space-y-3">
-        <h2 className="text-3xl font-bold">{decoded}</h2>
+        <h2 className="text-3xl font-bold">{seriesName}</h2>
         <p className="text-base text-muted-foreground">
           총 {posts.length}개의 포스트로 구성된 시리즈입니다.
         </p>
