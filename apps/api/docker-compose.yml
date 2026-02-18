@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: blog-db
+    environment:
+      POSTGRES_USER: blog_user
+      POSTGRES_PASSWORD: blog_password
+      POSTGRES_DB: blog
+    ports:
+      - "5433:5432"  # 로컬 PostgreSQL과 충돌 방지
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog_user -d blog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: blog-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://blog_user:blog_password@db:5432/blog
+
+      # Security
+      SECRET_KEY: your-secret-key-change-in-production-min-32-chars
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+
+      # OAuth - Google (replace with your credentials)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: http://localhost:8000/api/v1/auth/google/callback
+
+      # Frontend
+      FRONTEND_URL: http://localhost:3000
+
+      # Cookie settings
+      COOKIE_NAME: access_token
+      COOKIE_MAX_AGE: 1800
+      COOKIE_SECURE: false
+      COOKIE_HTTPONLY: true
+      COOKIE_SAMESITE: lax
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # Hot reload for development
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
