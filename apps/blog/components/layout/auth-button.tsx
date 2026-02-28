@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@repo/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/avatar";
 import { LogIn, LogOut } from "lucide-react";
 import type { User } from "@/lib/types/user";
 import api from "@/lib/api";
@@ -20,6 +20,7 @@ interface AuthButtonProps {
 
 export function AuthButton({ user }: AuthButtonProps) {
   const handleLogin = () => {
+    sessionStorage.setItem("loginRedirect", window.location.pathname);
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/login`;
   };
 
@@ -30,12 +31,7 @@ export function AuthButton({ user }: AuthButtonProps) {
 
   if (!user) {
     return (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleLogin}
-        className="hidden"
-      >
+      <Button variant="ghost" size="icon" onClick={handleLogin}>
         <LogIn className="h-5 w-5" />
       </Button>
     );
@@ -46,8 +42,9 @@ export function AuthButton({ user }: AuthButtonProps) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full">
           <Avatar className="h-6 w-6">
+            {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
             <AvatarFallback>
-              {user.full_name?.[0] || user.email?.[0]?.toUpperCase() || "?"}
+              {user.email?.[0]?.toUpperCase() ?? "?"}
             </AvatarFallback>
           </Avatar>
           <span className="sr-only">사용자 메뉴</span>

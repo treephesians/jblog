@@ -7,12 +7,10 @@ export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
-    // 쿠키가 이미 설정되어 있음 (백엔드에서)
-    // 홈으로 리다이렉트
-    setTimeout(() => {
-      router.push('/');
-      router.refresh(); // 사용자 정보 다시 불러오기
-    }, 1000);
+    const redirect = sessionStorage.getItem("loginRedirect") ?? "/";
+    sessionStorage.removeItem("loginRedirect");
+    router.replace(redirect);
+    router.refresh();
   }, [router]);
 
   return (

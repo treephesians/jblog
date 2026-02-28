@@ -115,7 +115,6 @@ def delete_comment(db: Session, comment_id: int, user_id: int) -> None:
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
 
     comment.is_deleted = True
-    comment.content = "[삭제된 댓글입니다]"
 
 
 @transactional

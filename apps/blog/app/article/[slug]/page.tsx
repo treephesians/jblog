@@ -9,6 +9,8 @@ import { compileMdxContent } from "@/lib/mdx";
 import { siteConfig } from "@/lib/site";
 import { TableOfContents } from "@/components/toc";
 import { SeriesNavigation } from "@/components/series-navigation";
+import { PostInteraction } from "@/components/post-interaction";
+import { FloatingActions } from "@/components/floating-actions";
 
 export function generateStaticParams() {
   return getPostSlugs().map((slug) => ({ slug }));
@@ -127,12 +129,18 @@ export default async function PostPage({
             {content}
           </div>
         </article>
+        <PostInteraction slug={slug} />
         {post.frontmatter.series && (
           <SeriesNavigation
             series={post.frontmatter.series}
             currentSlug={slug}
           />
         )}
+        <aside className="hidden xl:block absolute top-0 right-full h-full mr-8 w-14">
+          <div className="sticky top-24">
+            <FloatingActions slug={slug} />
+          </div>
+        </aside>
         <aside className="hidden xl:block absolute top-0 left-full h-full ml-18 w-56">
           <div className="sticky top-24">
             <TableOfContents />
