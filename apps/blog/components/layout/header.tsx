@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { AuthButton } from "@/components/layout/auth-button";
 import type { User } from "@/lib/types/user";
+import { AuthButton } from "@/components/layout/auth-button";
 
 const navItems = [
   { label: "article", href: "/article" },

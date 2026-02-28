@@ -30,9 +30,13 @@ export function AuthButton({ user }: AuthButtonProps) {
 
   if (!user) {
     return (
-      <Button variant="ghost" size="icon" onClick={handleLogin}>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleLogin}
+        className="hidden"
+      >
         <LogIn className="h-5 w-5" />
-        <span className="sr-only">로그인</span>
       </Button>
     );
   }
