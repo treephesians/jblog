@@ -5,22 +5,25 @@ import api from "@/lib/api";
 import type { User } from "@/lib/types/user";
 
 export function useCurrentUser() {
-  return useQuery({
-    queryKey: ["currentUser"],
+  return useQuery<User | null>({
+    queryKey: ["current-user"],
     queryFn: async () => {
       try {
         const { data } = await api.get<User>("/api/v1/users/me");
         return data;
-      } catch (error: unknown) {
-        // 401 에러 (비로그인)는 null 반환
-        if (error instanceof Error && error.message.includes("401")) {
-          return null;
-        }
+      } catch {
         return null;
       }
     },
     retry: false,
   });
+}
+
+export function useGoogleLogin() {
+  return () => {
+    sessionStorage.setItem("loginRedirect", window.location.pathname);
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/login`;
+  };
 }
 
 export function useLogout() {

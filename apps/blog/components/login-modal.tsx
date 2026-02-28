@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@repo/ui/dialog";
 import { Button } from "@repo/ui/button";
+import { useGoogleLogin } from "@/hooks/use-current-user";
 
 interface LoginModalProps {
   open: boolean;
@@ -16,10 +17,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ open, onClose }: LoginModalProps) {
-  const handleLogin = () => {
-    sessionStorage.setItem("loginRedirect", window.location.pathname);
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/login`;
-  };
+  const googleLogin = useGoogleLogin();
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -35,7 +33,7 @@ export function LoginModal({ open, onClose }: LoginModalProps) {
           <Button variant="outline" onClick={onClose}>
             취소
           </Button>
-          <Button onClick={handleLogin}>Google로 로그인</Button>
+          <Button onClick={googleLogin}>Google로 로그인</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

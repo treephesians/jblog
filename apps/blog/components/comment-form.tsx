@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@repo/ui/button";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useLoginModal } from "@/providers/login-modal-provider";
 
 interface CommentFormProps {
   onSubmit: (content: string) => void;
@@ -9,8 +11,6 @@ interface CommentFormProps {
   onCancel?: () => void;
   placeholder?: string;
   defaultValue?: string;
-  isLoggedIn?: boolean;
-  onLoginRequired?: () => void;
 }
 
 export function CommentForm({
@@ -19,15 +19,15 @@ export function CommentForm({
   onCancel,
   placeholder = "댓글을 작성해주세요...",
   defaultValue = "",
-  isLoggedIn = true,
-  onLoginRequired,
 }: CommentFormProps) {
   const [content, setContent] = useState(defaultValue);
+  const { data: user } = useCurrentUser();
+  const openLoginModal = useLoginModal();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoggedIn) {
-      onLoginRequired?.();
+    if (!user) {
+      openLoginModal();
       return;
     }
     if (!content.trim()) return;
@@ -50,7 +50,7 @@ export function CommentForm({
             취소
           </Button>
         )}
-        <Button type="submit" size="sm" disabled={isPending || (!isLoggedIn ? false : !content.trim())}>
+        <Button type="submit" size="sm" disabled={isPending || (!!user && !content.trim())}>
           {isPending ? "등록 중..." : "등록"}
         </Button>
       </div>

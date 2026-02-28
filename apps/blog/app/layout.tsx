@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { LoginModalProvider } from "@/providers/login-modal-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { siteConfig } from "@/lib/site";
 import { Toaster } from "sonner";
@@ -54,7 +55,9 @@ export default async function RootLayout({
         <ThemeProvider>
           <Header user={user} />
           <main className="px-6 py-8">
-            <QueryProvider>{children}</QueryProvider>
+            <QueryProvider>
+              <LoginModalProvider>{children}</LoginModalProvider>
+            </QueryProvider>
           </main>
           <Footer />
           <Toaster richColors position="bottom-center" />

@@ -9,10 +9,9 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface CommentSectionProps {
   slug: string;
-  onLoginRequired: () => void;
 }
 
-export function CommentSection({ slug, onLoginRequired }: CommentSectionProps) {
+export function CommentSection({ slug }: CommentSectionProps) {
   const { data: user } = useCurrentUser();
   const { commentsQuery, addComment, updateComment, deleteComment } =
     usePostComments(slug);
@@ -37,19 +36,17 @@ export function CommentSection({ slug, onLoginRequired }: CommentSectionProps) {
         )}
       </h2>
 
-      {/* 댓글 작성 폼 - 항상 표시, 등록 시 로그인 체크 */}
       <div className="mb-8">
         <CommentForm
           onSubmit={(content) => addComment.mutate({ content })}
           isPending={addComment.isPending}
-          isLoggedIn={!!user}
-          onLoginRequired={onLoginRequired}
         />
       </div>
 
-      {/* 댓글 목록 */}
       {commentsQuery.isLoading ? (
         <p className="text-sm text-muted-foreground">댓글을 불러오는 중...</p>
+      ) : comments.length === 0 ? (
+        <p className="text-sm text-muted-foreground">첫 번째 댓글을 남겨보세요!</p>
       ) : (
         <div className="space-y-6">
           {comments.map((comment) => (

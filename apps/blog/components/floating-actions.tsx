@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@repo/ui/utils";
-import { LoginModal } from "@/components/login-modal";
 import { usePostLike, usePostStats } from "@/hooks/use-post-interaction";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useLoginModal } from "@/providers/login-modal-provider";
 
 function ActionButton({
   onClick,
@@ -33,14 +32,9 @@ function ActionButton({
   );
 }
 
-function LikeAction({
-  slug,
-  onLoginRequired,
-}: {
-  slug: string;
-  onLoginRequired: () => void;
-}) {
+function LikeAction({ slug }: { slug: string }) {
   const { data: user } = useCurrentUser();
+  const openLoginModal = useLoginModal();
   const { checkQuery, toggleMutation } = usePostLike(slug);
   const { data: stats } = usePostStats(slug);
 
@@ -49,7 +43,7 @@ function LikeAction({
 
   const handleClick = () => {
     if (!user) {
-      onLoginRequired();
+      openLoginModal();
       return;
     }
     toggleMutation.mutate(liked);
@@ -92,18 +86,10 @@ function ShareAction() {
 }
 
 export function FloatingActions({ slug }: { slug: string }) {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
   return (
-    <>
-      <div className="flex flex-col items-center gap-4">
-        <LikeAction slug={slug} onLoginRequired={() => setShowLoginModal(true)} />
-        <ShareAction />
-      </div>
-      <LoginModal
-        open={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
-    </>
+    <div className="flex flex-col items-center gap-4">
+      <LikeAction slug={slug} />
+      <ShareAction />
+    </div>
   );
 }

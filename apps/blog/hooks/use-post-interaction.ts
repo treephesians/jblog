@@ -3,24 +3,9 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import api from "@/lib/api";
+import type { PostComment, PostStats, CommentUserInfo } from "@/lib/types/api";
 
-export interface PostComment {
-  id: number;
-  post_slug: string;
-  user_id: number;
-  parent_id: number | null;
-  content: string;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PostStats {
-  post_slug: string;
-  view_count: number;
-  like_count: number;
-  comment_count: number;
-}
+export type { PostComment, PostStats, CommentUserInfo };
 
 export function usePostStats(slug: string) {
   return useQuery<PostStats>({
@@ -118,11 +103,6 @@ export function usePostComments(slug: string) {
   });
 
   return { commentsQuery, addComment, updateComment, deleteComment };
-}
-
-export interface CommentUserInfo {
-  email: string;
-  avatar_url: string | null;
 }
 
 export function useCommentUsers(userIds: number[]) {

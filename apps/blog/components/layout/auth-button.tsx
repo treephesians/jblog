@@ -12,26 +12,19 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/avatar";
 import { LogIn, LogOut } from "lucide-react";
 import type { User } from "@/lib/types/user";
-import api from "@/lib/api";
+import { useGoogleLogin, useLogout } from "@/hooks/use-current-user";
 
 interface AuthButtonProps {
   user: User | null;
 }
 
 export function AuthButton({ user }: AuthButtonProps) {
-  const handleLogin = () => {
-    sessionStorage.setItem("loginRedirect", window.location.pathname);
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google/login`;
-  };
-
-  const handleLogout = async () => {
-    await api.post("/api/v1/auth/logout");
-    window.location.href = "/";
-  };
+  const googleLogin = useGoogleLogin();
+  const logout = useLogout();
 
   if (!user) {
     return (
-      <Button variant="ghost" size="icon" onClick={handleLogin}>
+      <Button variant="ghost" size="icon" onClick={googleLogin}>
         <LogIn className="h-5 w-5" />
       </Button>
     );
@@ -62,7 +55,7 @@ export function AuthButton({ user }: AuthButtonProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>로그아웃</span>
         </DropdownMenuItem>
