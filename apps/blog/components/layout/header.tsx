@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@repo/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { AuthButton } from "@/components/layout/auth-button";
+import type { User } from "@/lib/types/user";
 
 const navItems = [
   { label: "article", href: "/article" },
@@ -12,7 +14,11 @@ const navItems = [
   { label: "about", href: "/about" },
 ];
 
-export function Header() {
+interface HeaderProps {
+  user: User | null;
+}
+
+export function Header({ user }: HeaderProps) {
   const pathname = usePathname();
 
   return (
@@ -44,6 +50,7 @@ export function Header() {
             </Link>
           </Button>
           <ThemeToggle />
+          <AuthButton user={user} />
         </div>
       </div>
     </header>
