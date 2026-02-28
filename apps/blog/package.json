@@ -12,6 +12,7 @@
     "translate": "tsx scripts/translate.ts"
   },
   "dependencies": {
+    "@repo/content": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",

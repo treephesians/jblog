@@ -3,7 +3,9 @@ import fs from "fs";
 import path from "path";
 import "dotenv/config";
 
-const CONTENT_DIR = path.join(process.cwd(), "content/posts");
+const CONTENT_DIR = fs.realpathSync(
+  path.resolve(process.cwd(), "node_modules", "@repo", "content", "posts"),
+);
 
 const SYSTEM_PROMPT = `You are a professional Korean-to-English translator for a tech blog.
 

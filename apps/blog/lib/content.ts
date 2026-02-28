@@ -4,7 +4,9 @@ import matter from "gray-matter";
 import readingTime from "reading-time";
 import type { Post, PostFrontmatter } from "./types";
 
-const postsDirectory = path.join(process.cwd(), "content/posts");
+const postsDirectory = fs.realpathSync(
+  path.resolve(process.cwd(), "node_modules", "@repo", "content", "posts"),
+);
 
 function getMdxFiles(dir: string): { slug: string; filePath: string }[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
