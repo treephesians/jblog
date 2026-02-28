@@ -1,0 +1,590 @@
+---
+title: "OpenCode 오픈소스 코드 분석:"
+description: "AI Agent 오픈소스 OpenCode를 분석합니다."
+date: "2026-02-28"
+category: "Review"
+tags: ["review", "ai", "agent"]
+thumbnail: "/images/thumbnails/opencode-analysis.png"
+---
+
+# AI 코딩 에이전트는 어떻게 만들어지는가
+
+회사에서 Claude Code를 실행시키면 보안 문제가 생긴다.
+
+따라서 보안적으로 안전하게 로컬에서 실행시키고 싶었으며 자연스럽게 나만의 agent를 만들고 싶었다.
+
+그렇게 찾아보다가 OpenCode라는 에이전트 오픈소스를 만나게 되었다.
+
+OpenCode는 Claude Code와 유사한 오픈소스 AI 코딩 에이전트이며,
+
+이 글에서는 소스코드를 직접 뜯어보며 "AI 에이전트가 실제로 어떻게 작동하는지"를 설명하고자 한다.
+
+---
+
+## OpenCode가 뭔가요?
+
+OpenCode는 터미널에서 동작하는 **AI 코딩 에이전트**다.
+
+Claude Code나 Cursor와 비슷한데, 100% 오픈소스라는 점이 다르다.
+
+Anthropic, OpenAI, Google 등 다양한 LLM 프로바이더를 지원하고, 파일 읽기/쓰기/수정, 터미널 명령 실행, 웹 검색 같은 기능을 AI가 직접 수행한다.
+
+기술 스택은 **Bun + TypeScript + Vercel AI SDK**다. 모노레포 구조로 되어 있고 주요 패키지는 이렇다 🔽
+
+```
+packages/
+ ├── opencode/   ← 핵심 백엔드 (서버 + 에이전트 로직)
+ ├── app/        ← 웹 UI (SolidJS)
+ ├── desktop/    ← 데스크탑 앱 (Tauri)
+ └── sdk/        ← 외부 연동 SDK
+```
+
+이 글에서는 AI 에이전트의 핵심인 `packages/opencode`를 집중적으로 분석한다.
+
+---
+
+## 전체 구조를 한 장으로 이해하기
+
+복잡하게 보이지만, 핵심 흐름은 단순하다.
+
+```
+사용자 입력
+    ↓
+SessionPrompt.prompt()   ← 대화 시작
+    ↓
+SessionPrompt.loop()     ← while(true) 루프
+    ↓
+LLM.stream()             ← LLM 호출
+    ↓
+SessionProcessor         ← 응답 스트림 처리
+    ↓
+Tool 실행 (bash, edit, read...)
+    ↓
+결과를 다시 LLM에 전달 → 루프 반복
+```
+
+"LLM한테 물어보고 → LLM이 툴을 쓰고 → 결과를 다시 LLM한테 주고 → 반복"
+
+이게 AI 에이전트의 본질이다. OpenCode는 이 패턴을 프로덕션 레벨로 구현해놓은 것이다.
+
+---
+
+## 1. Agent: 역할과 권한의 묶음
+
+`packages/opencode/src/agent/agent.ts`
+
+OpenCode에서 "에이전트"는 **LLM의 역할, 권한, 설정을 묶어놓은 객체**다.
+
+사람으로 비유하면 "팀원 역할 정의서"라고 볼 수 있다.
+
+기본으로 7가지 에이전트가 내장되어 있다 🔽
+
+| 에이전트     | 역할               | 특징                            |
+| ------------ | ------------------ | ------------------------------- |
+| `build`      | 메인 개발 에이전트 | 파일 수정, bash 실행 모두 가능  |
+| `plan`       | 계획 수립 전용     | 파일 **수정 불가**, 읽기만 허용 |
+| `explore`    | 코드 탐색 전문     | grep/glob/read만 허용, 초고속   |
+| `general`    | 범용 서브에이전트  | 복잡한 멀티스텝 작업용          |
+| `compaction` | 대화 압축 전용     | 컨텍스트가 꽉 찼을 때 자동 호출 |
+| `title`      | 세션 제목 생성     | 대화 시작 시 자동으로 제목 생성 |
+| `summary`    | 요약 전용          | 내부 요약 작업에 사용           |
+
+에이전트 객체가 실제로 어떻게 생겼는지 보면,
+
+```typescript
+// agent.ts
+const result: Record<string, Info> = {
+  build: {
+    name: "build",
+    description: "The default agent. Executes tools based on configured permissions.",
+    mode: "primary",       // primary(메인) vs subagent(서브)
+    permission: [...],     // 어떤 툴을 쓸 수 있는지
+    options: {},
+    native: true,
+  },
+  explore: {
+    name: "explore",
+    mode: "subagent",
+    permission: PermissionNext.merge(
+      defaults,
+      PermissionNext.fromConfig({
+        "*": "deny",      // 기본은 다 막고
+        grep: "allow",    // 이것만 허용
+        glob: "allow",
+        read: "allow",
+        bash: "allow",
+        // edit, write 등은 없음 → 수정 불가
+      }),
+    ),
+    prompt: PROMPT_EXPLORE,  // 전용 시스템 프롬프트
+    ...
+  },
+}
+```
+
+핵심은 **권한(permission)** 이다. 에이전트마다 어떤 툴을 쓸 수 있는지가 명확히 정의되어 있다.
+
+`explore` 에이전트는 아무리 LLM이 파일을 수정하려 해도 권한이 없어서 실행 자체가 차단된다.
+
+또한 사용자가 직접 커스텀 에이전트를 만들 수도 있다. 설정 파일에 이렇게 추가하면 된다.
+
+```jsonc
+// opencode.jsonc
+{
+  "agent": {
+    "my-reviewer": {
+      "description": "코드 리뷰 전문 에이전트",
+      "prompt": "You are a strict code reviewer...",
+      "permission": {
+        "*": "deny",
+        "read": "allow",
+        "glob": "allow",
+      },
+    },
+  },
+}
+```
+
+---
+
+## 2. Session: 대화의 단위
+
+`packages/opencode/src/session/index.ts`
+
+세션은 **하나의 대화 흐름**이다. SQLite 데이터베이스에 저장된다. 구조는 다음과 같다.
+
+```
+Session
+├── id, title, projectID, directory
+├── Messages (시간순으로 user/assistant 번갈아가며)
+│   ├── UserMessage
+│   │   └── Parts
+│   │       ├── TextPart    (사용자가 입력한 텍스트)
+│   │       ├── FilePart    (첨부한 파일)
+│   │       └── AgentPart   (@explore 처럼 에이전트 호출)
+│   └── AssistantMessage
+│       └── Parts
+│           ├── TextPart      (LLM의 텍스트 응답)
+│           ├── ToolPart      (툴 호출 + 결과)
+│           ├── ReasoningPart (thinking 내용)
+│           └── StepPart      (각 스텝의 토큰/비용 정보)
+└── 자식 세션들 (서브에이전트가 생성)
+```
+
+메시지는 **Parts**라는 작은 조각들로 구성된다. LLM 응답이 스트리밍으로 오기 때문에, 텍스트/툴호출/추론 등이 각각 별도의 Part로 저장된다.
+
+흥미로운 점은 세션이 **부모-자식 관계**를 가진다는 것이다. 서브에이전트를 호출하면 새로운 자식 세션이 생성되고 `parentID`로 연결된다.
+
+이렇게 하면 메인 에이전트의 컨텍스트와 서브에이전트의 컨텍스트가 완전히 분리된다.
+
+---
+
+## 3. Tool: LLM이 세상과 상호작용하는 방법
+
+`packages/opencode/src/tool/`
+
+툴은 **LLM이 실제 액션을 취할 수 있게 해주는 함수들**이다. OpenCode에 기본으로 내장된 툴들 🔽
+
+```
+bash        → 셸 명령어 실행
+read        → 파일 읽기
+write       → 파일 새로 쓰기
+edit        → 파일 일부 수정 (exact match 방식)
+glob        → 파일 패턴 검색 (*.ts, src/**/*.tsx 등)
+grep        → 코드 내용 검색 (ripgrep 사용)
+task        → 서브에이전트 호출 ⭐
+webfetch    → 웹 페이지 내용 읽기
+websearch   → 웹 검색
+question    → 사용자에게 확인/질문
+todo        → 할 일 목록 관리
+```
+
+툴 하나가 어떻게 정의되는지 보면,
+
+```typescript
+// tool.ts - 툴 정의 인터페이스
+export namespace Tool {
+  export interface Info {
+    id: string;
+    init: (ctx?: InitContext) => Promise<{
+      description: string; // LLM에게 보여주는 툴 설명
+      parameters: z.ZodType; // 입력 스키마 (Zod)
+      execute(
+        args,
+        ctx,
+      ): Promise<{
+        title: string;
+        metadata: any;
+        output: string; // 툴 실행 결과 (LLM에게 전달)
+      }>;
+    }>;
+  }
+}
+```
+
+실제 `bash` 툴 구현부를 보면,
+
+```typescript
+// bash.ts (요약)
+export const BashTool = Tool.define("bash", {
+  description: "셸 명령어를 실행합니다...",
+  parameters: z.object({
+    command: z.string(),
+    timeout: z.number().optional(),
+    description: z.string().optional(),
+  }),
+  execute: async (args, ctx) => {
+    // 권한 확인
+    await ctx.ask({ permission: "bash", ... })
+
+    // 실제 명령 실행
+    const result = await $`${args.command}`.timeout(args.timeout)
+
+    return {
+      title: args.description ?? args.command,
+      output: result.stdout + result.stderr,
+      metadata: { exitCode: result.exitCode }
+    }
+  }
+})
+```
+
+모든 툴은 실행 전에 반드시 `ctx.ask()`로 **권한 확인**을 거친다.
+
+이 부분이 사용자에게 "이 명령을 실행할까요?"라고 묻는 프롬프트를 띄우는 곳이다.
+
+---
+
+## 4. 에이전트의 심장: SessionPrompt.loop()
+
+`packages/opencode/src/session/prompt.ts`
+
+이 함수가 **에이전트가 작동하는 핵심 루프**다. 코드를 단순화해서 보면,
+
+```typescript
+export const loop = fn(LoopInput, async (input) => {
+  const { sessionID } = input
+  let step = 0
+
+  while (true) {
+    // 1. 현재까지의 메시지 히스토리 가져오기
+    const msgs = await MessageV2.filterCompacted(MessageV2.stream(sessionID))
+
+    // 2. 마지막 유저/어시스턴트 메시지 확인
+    let lastUser, lastAssistant, lastFinished
+    // ... (히스토리에서 찾는 로직)
+
+    // 3. 특수 케이스 처리
+    if (task?.type === "subtask") {
+      // 서브에이전트 실행
+      await TaskTool.execute(...)
+      continue
+    }
+
+    if (task?.type === "compaction") {
+      // 컨텍스트 압축
+      await SessionCompaction.process(...)
+      continue
+    }
+
+    if (isContextOverflow) {
+      // 자동 압축 트리거
+      await SessionCompaction.create(...)
+      continue
+    }
+
+    // 4. 일반 처리: LLM 호출
+    step++
+    const processor = SessionProcessor.create({ ... })
+    const result = await processor.process({
+      messages: MessageV2.toModelMessages(msgs, model),
+      tools: await resolveTools(...),
+      model,
+      ...
+    })
+
+    // 5. 결과에 따라 분기
+    if (result === "stop") break           // LLM이 완료 선언
+    if (result === "compact") {
+      await SessionCompaction.create(...)  // 압축 후 계속
+    }
+    // result === "continue" → while 반복
+  }
+})
+```
+
+루프가 종료되는 조건은 딱 세 가지다,
+
+1. LLM이 `finish_reason: "stop"`으로 응답할 때
+2. 툴 실행이 거부(denied)될 때
+3. 에러가 발생할 때
+
+그 외에는 계속 돌면서 LLM과 툴 실행을 반복한다.
+
+---
+
+## 5. SessionProcessor: 스트림 이벤트 처리기
+
+`packages/opencode/src/session/processor.ts`
+
+LLM은 응답을 **스트리밍**으로 돌려준다. Vercel AI SDK의 `streamText()`를 쓰는데, 이 스트림에서 나오는 이벤트들을 처리하는 게 `SessionProcessor`다.
+
+이벤트 종류와 처리 방식 🔽
+
+```typescript
+for await (const value of stream.fullStream) {
+  switch (value.type) {
+
+    case "text-start":
+      // 텍스트 응답 시작 → TextPart 생성
+      currentText = { type: "text", text: "", ... }
+      await Session.updatePart(currentText)
+      break
+
+    case "text-delta":
+      // 텍스트 스트리밍 중 → DB에 실시간 업데이트
+      currentText.text += value.text
+      await Session.updatePartDelta({ delta: value.text, ... })
+      break
+
+    case "tool-call":
+      // LLM이 툴 호출 결정 → ToolPart를 running 상태로
+      await Session.updatePart({
+        type: "tool",
+        tool: value.toolName,
+        state: { status: "running", input: value.input, ... }
+      })
+
+      // "doom loop" 감지: 같은 툴을 같은 인자로 3번 반복하면 사용자에게 확인
+      if (isDoomLoop) {
+        await PermissionNext.ask({ permission: "doom_loop", ... })
+      }
+      break
+
+    case "tool-result":
+      // 툴 실행 완료 → ToolPart를 completed 상태로
+      await Session.updatePart({
+        state: { status: "completed", output: value.output, ... }
+      })
+      break
+
+    case "finish-step":
+      // LLM 스텝 완료 → 토큰/비용 계산 및 저장
+      const usage = Session.getUsage({ model, usage: value.usage })
+      assistantMessage.cost += usage.cost
+
+      // 컨텍스트 오버플로우 체크
+      if (await SessionCompaction.isOverflow({ tokens: usage.tokens, model })) {
+        needsCompaction = true
+      }
+      break
+  }
+}
+```
+
+**doom loop 감지**가 특히 흥미롭다. 같은 툴을 같은 인자로 3번 연속 호출하면 "에이전트가 무한루프에 빠졌구나"라고 판단하고 사용자에게 확인을 요청한다.
+
+실제 프로덕션에서 생기는 문제를 코드 레벨에서 해결한 좋은 예시다.
+
+---
+
+## 6. TaskTool: 멀티 에이전트의 핵심
+
+`packages/opencode/src/tool/task.ts`
+
+이게 OpenCode에서 가장 흥미로운 부분이다. **에이전트가 다른 에이전트를 호출**할 수 있다.
+
+```typescript
+// LLM이 이렇게 호출한다
+task({
+  description: "Find all API endpoints",
+  subagent_type: "explore", // 어떤 에이전트 타입?
+  prompt: "Find all REST API endpoints in the codebase...",
+});
+```
+
+내부에서 일어나는 일:
+
+```typescript
+export const TaskTool = Tool.define("task", async (ctx) => {
+  return {
+    execute: async (params, ctx) => {
+      // 1. 새 자식 세션 생성
+      const session = await Session.create({
+        parentID: ctx.sessionID,    // 부모 세션 연결
+        title: params.description + ` (@${agent.name} subagent)`,
+        permission: [
+          // 서브에이전트는 또 다른 서브에이전트 호출 불가
+          { permission: "task", pattern: "*", action: "deny" },
+        ],
+      })
+
+      // 2. 서브에이전트 실행 (재귀적으로 SessionPrompt.prompt 호출)
+      const result = await SessionPrompt.prompt({
+        sessionID: session.id,
+        agent: agent.name,    // explore, general 등
+        parts: promptParts,
+      })
+
+      // 3. 결과 텍스트 반환 (부모 LLM에게)
+      const text = result.parts.findLast((x) => x.type === "text")?.text ?? ""
+      return {
+        output: `task_id: ${session.id}\n\n<task_result>\n${text}\n</task_result>`,
+        ...
+      }
+    }
+  }
+})
+```
+
+이 구조의 핵심은 **완전한 격리**다. 서브에이전트는 자기 자신의 독립적인 세션에서 실행된다.
+
+부모 에이전트의 메시지 히스토리에는 접근하지 못하고, 오직 주어진 prompt만 본다. 작업이 끝나면 결과 텍스트만 부모에게 전달된다.
+
+그리고 `task_id`를 반환하기 때문에, 나중에 같은 서브에이전트 세션을 **이어서 실행**할 수도 있다 (resume 기능).
+
+---
+
+## 7. 컨텍스트 압축(Compaction): LLM의 기억 관리
+
+`packages/opencode/src/session/compaction.ts`
+
+LLM은 컨텍스트 윈도우가 한정되어 있다. 대화가 길어지면 결국 한계에 달한다. OpenCode는 이걸 자동으로 처리한다.
+
+```typescript
+// 컨텍스트가 꽉 찼을 때 자동 실행
+export async function isOverflow(input: { tokens; model }) {
+  const context = input.model.limit.context;
+  const count = input.tokens.total;
+  const reserved = Math.min(20_000, maxOutputTokens);
+  const usable = context - maxOutputTokens;
+
+  return count >= usable; // 한계에 도달했으면 true
+}
+```
+
+압축이 실행되면 `compaction` 에이전트가 이런 프롬프트를 받는다 🔽
+
+```
+지금까지의 대화를 요약해줘. 다음 형식으로:
+
+## Goal
+[사용자가 달성하려는 목표]
+
+## Instructions
+[중요한 지시사항들]
+
+## Discoveries
+[대화 중 발견한 중요한 사실들]
+
+## Accomplished
+[완료된 작업, 진행 중인 작업, 남은 작업]
+
+## Relevant files / directories
+[관련 파일 목록]
+```
+
+이 요약본이 새 메시지로 저장되고, 이전 대화는 컨텍스트에서 제외된다.
+
+사용자 입장에서는 대화가 끊기지 않고 계속된다.
+
+---
+
+## 8. 권한 시스템: 안전장치
+
+`packages/opencode/src/permission/`
+
+모든 툴 실행은 권한 체크를 거친다. 규칙은 간단하다.
+
+```typescript
+// 권한 규칙 예시
+{
+  "*": "allow",          // 기본: 다 허용
+  "doom_loop": "ask",    // 무한루프 감지 시: 물어보기
+  "bash": "ask",         // bash: 매번 물어보기
+  "read": {
+    "*": "allow",
+    "*.env": "ask",               // .env 파일: 물어보기
+    "*.env.example": "allow",     // .env.example은 그냥 허용
+  },
+  "edit": {
+    "*": "deny",                          // plan 에이전트는 수정 금지
+    ".opencode/plans/*.md": "allow",      // 플랜 파일만 허용
+  },
+}
+```
+
+권한은 **에이전트 기본 권한** + **세션 권한** + **사용자 설정 권한**이 레이어로 합쳐진다. 나중에 설정한 것이 앞선 설정을 덮는다.
+
+---
+
+## 9. 이벤트 버스: 컴포넌트 분리
+
+`packages/opencode/src/bus/`
+
+OpenCode는 서버/TUI/웹앱이 분리된 아키텍처다. 이 컴포넌트들이 통신하는 방법이 **이벤트 버스**다.
+
+```typescript
+// 이벤트 발행 (서버 쪽)
+await Bus.publish(MessageV2.Event.PartUpdated, {
+  part: updatedPart, // 툴 실행 결과
+});
+
+// 이벤트 구독 (UI 쪽)
+Bus.subscribe(MessageV2.Event.PartUpdated, (event) => {
+  // 화면 실시간 업데이트
+  updateUI(event.properties.part);
+});
+```
+
+LLM 응답이 스트리밍될 때마다 `PartDelta` 이벤트가 발행되고, UI는 이걸 받아서 실시간으로 텍스트를 화면에 출력한다.
+
+채팅처럼 글자가 하나씩 나타나는 게 이 이벤트 버스 덕분이다.
+
+---
+
+## AI 에이전트를 만들 때 고려할 것들
+
+OpenCode를 분석하면서 "프로덕션 레벨 AI 에이전트"가 무엇을 고민하는지 알게 됐다.
+
+**1. Tool-Use Loop가 전부다**
+
+AI 에이전트의 핵심은 `while(true)` 루프다. LLM 호출 → 툴 실행 → 결과 피드백 → 반복. 이 사이클을 얼마나 안정적으로 구현하느냐가 에이전트 품질을 결정한다.
+
+**2. 권한 시스템은 필수다**
+
+LLM이 아무 파일이나 삭제하거나 위험한 명령을 실행하는 걸 막아야 한다. 툴마다, 에이전트마다 세밀한 권한 설정이 필요하다.
+
+**3. 컨텍스트 관리가 핵심 문제다**
+
+LLM 컨텍스트 윈도우는 유한하다. 긴 대화에서 무엇을 유지하고 무엇을 버릴지 전략이 있어야 한다. OpenCode는 자동 압축으로 이를 해결한다.
+
+**4. 멀티 에이전트로 복잡한 작업을 분해하라**
+
+하나의 에이전트가 모든 걸 하려고 하면 컨텍스트가 금방 꽉 찬다. 탐색 전용, 실행 전용, 계획 전용 에이전트를 분리하고 필요할 때 호출하는 구조가 효율적이다.
+
+**5. 무한루프를 항상 경계하라**
+
+같은 툴을 같은 인자로 반복 호출하는 패턴은 반드시 감지해야 한다. OpenCode의 doom loop 감지처럼.
+
+**6. 스트리밍은 UX의 핵심이다**
+
+응답 전체를 기다리지 않고 조각조각 실시간으로 보여주는 것이 사용자 경험을 크게 좌우한다. 이벤트 버스나 SSE 같은 실시간 통신 구조가 필요하다.
+
+---
+
+## 마치며
+
+사실 그동안 AI 에이전트는 AI 모델의 확장이라 생각했다. AI Agent 개발은 AI 엔지니어 또는 연구자들의 역할이라고 생각했다.
+
+그러나 이렇게 기회가 되어 코드를 분석해보니 AI 모델 개발이 아닌 벡엔드 개발(?)에 더 가깝게 느껴졌다.
+
+요즘에 oh-my-opencode라는 OpenCode의 플러그인이 굉장히 핫하다. 이 플러그인은 OpenCode의 단점을 보완해주는 플러그인이다.
+
+따라서 어떤 문제점이 있었고 그것을 어떻게 해결하고자 확인할 수 있는 좋은 프로젝트이기에 다음에는 oh-my-opencode도 분석해보려고 한다.
+
+---
+
+# Reference
+
+[OpenCode Github](https://github.com/anomalyco/opencode)

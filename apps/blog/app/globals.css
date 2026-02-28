@@ -133,6 +133,23 @@
   }
 }
 
+/* Notion-style inline code */
+:not(pre) > code {
+  @apply text-[0.85em] font-mono rounded-[4px] px-[0.4em] py-[0.2em];
+  color: #eb5757;
+  background: rgba(135, 131, 120, 0.15);
+}
+
+:not(pre) > code::before,
+:not(pre) > code::after {
+  content: none;
+}
+
+.dark :not(pre) > code {
+  color: #f47067;
+  background: rgba(135, 131, 120, 0.25);
+}
+
 /* rehype-pretty-code: dual theme support */
 [data-rehype-pretty-code-figure] pre {
   @apply px-4 py-3 rounded-lg text-sm overflow-x-auto my-4;
