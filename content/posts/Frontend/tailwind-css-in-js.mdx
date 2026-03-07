@@ -1,0 +1,273 @@
+---
+title: "tailwind도 CSS-in-JS인가요?"
+description: "CSS-in-JS의 개념과 동작 방식, 주요 라이브러리들을 비교합니다."
+date: "2025-06-23"
+category: "Frontend"
+tags: ["frontend", "css"]
+thumbnail: "/images/thumbnails/tailwind-css-in-js.jpg"
+---
+
+# 글을 시작하며
+
+CSS는 다들 잘 알 것이다.
+
+근데 CSS-in-JS는 무엇일까?
+
+나는 아래와 같은 섹션으로 CSS-in-JS에 대해서 알아보고자 한다.
+
+- CSS-in-JS란
+- 왜 사용하게 되었을까
+- 동작 방식
+- 주요 라이브러리 특징 및 비교
+
+## CSS-in-JS란,
+
+CSS-in-JS는 JavaScript 코드 안에서 CSS를 작성하고 적용하는 기법이다.
+
+전통적인 방식에서는 .css 파일을 따로 만들고, HTML 요소에 클래스를 지정해서 스타일을 적용하지만,
+
+CSS-in-JS는 JavaScript 코드 안에서 직접 스타일을 정의하고 컴포넌트에 적용하는 방식이다.
+
+그럼 글 제목처럼 Tailwind도 CSS-in-JS일까?
+
+아니다.
+
+Tailwind CSS는 미리 정의된 클래스 이름들을 조합해서 HTML/JSX에서 직접 스타일을 구성하는 방식이다. 즉, 스타일은 CSS 파일에 정적으로 정의되어 있고, JS 안에서 직접 스타일을 작성하지 않는다.
+
+## 왜 사용하게 되었을까,
+
+### 기존 CSS의 문제점
+
+1. 전역 네임스페이스
+   1. CSS 클래스는 기본적으로 전역이라 이름이 겹치면 스타일이 의도치 않게 덮어써진다.
+2. 의존성과 모듈화 부족
+   1. 컴포넌트 기반 개발에서는 각 컴포넌트가 자신만의 스타일을 갖는 게 좋다.
+   2. 하지만 .css 파일은 컴포넌트와 분리되어 있어, 코드 구조가 느슨하다.
+3. 동적 스타일링 어려움
+   1. 조건에 따라 스타일을 바꾸고 싶을 때, class 조합이나 JS에서 직접 스타일을 조작해야 한다.
+   2. 위 상황일 때, 유지보수도 어렵고 깔끔하지 않다.
+
+### CSS-in-JS가 해결한 것들
+
+| 문제               | 해결 방식                                    |
+| ------------------ | -------------------------------------------- |
+| 클래스 충돌        | 자동으로 고유한 className 생성 (해시 기반)   |
+| 모듈화 부족        | 컴포넌트 파일 안에서 스타일 작성 (함께 관리) |
+| 동적 스타일 어려움 | props나 상태에 따라 JS로 조건부 스타일 적용  |
+| 브라우저 호환성    | 자동 벤더 프리픽스 처리                      |
+
+그러나 .modules.css 형태로 css도 모듈화할 수 있는 것을 보면,
+
+CSS-in-JS가 가장 크게 해결한 것은 동적 스타일링이지 않을까 생각한다.
+
+\*\* 벤더 프리픽스란?
+
+- 브라우저 제조사(Vendor)가 **자체적으로 CSS 기능을 미리 실험적으로 도입할 때** 붙이는 특별한 접두어(prefix)다.
+
+```jsx
+/* 표준이 되기 전 실험적으로 쓰던 방식들 */
+.element {
+  -webkit-transform: rotate(45deg);  /* Chrome, Safari */
+  -moz-transform: rotate(45deg);     /* Firefox */
+  -ms-transform: rotate(45deg);      /* IE */
+  transform: rotate(45deg);          /* 표준 */
+}
+```
+
+# 동작 방식
+
+css-in-js의 동작 방식은 크게 runtime, zero-runtime으로 나눠진다.
+
+runtime이 반드시 성능저하를 발생시키진 않고 프로젝트 규모와 상황에 따라 달라질 수 있다.
+
+## runtime
+
+javascript runtime(ex. web broswer)에서 필요한 CSS를 동적으로 만들어 적용한다.
+
+- 개발모드에서는 **`<style>`** 태그에 style을 추가하는 방식을 사용한다.
+  - 디버깅에 이점이 있다고 한다.
+- 배포 모드에서는 stylesSheet을 [CSSStylesSheet.insertRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet/insertRule) 통해 바로[CSSOM](https://dkmqflx.github.io/frontend/2020/09/14/jscssom/)에 주입한다.
+  - 자세한 분석은 안하겠지만, 성능상의 이점이 있다고 한다.
+
+css-loader가 필요 없다.
+
+- css파일을 생성하지 않기에 webpack에서 css-loader가 필요 없다.
+
+런타임 오버헤드가 발생할 수 있다.
+
+- 런타임에서 동적으로 스타일을 생성하기에 스타일이 수시로 변경된다면...
+- ex) 스크롤, 드래그 앤 드랍 관련 복잡한 에니메이션
+
+대표적으로 잘 알려진 [styled-component](https://styled-components.com/), [emotion](https://emotion.sh/docs/introduction) 이 있다.
+
+## zero-runtime
+
+런타임에 css를 생성하지않으면서 페이지를 더 빨리 로드할 수 있다.
+
+JS 번들에서 styles코드를 모두 실행되어야 페이지가 로드된다.
+
+![image.png](/images/contents/css-runtime.png)
+
+runtime에서 스타일이 생성되지 않는다.
+
+- props 변화에 따른 동적인 스타일은 css 변수를 통해 적용한다.
+
+빌드 타임에 css를 생성해야기에 webpack 설정을 해야 한다.
+
+- React CRA을 사용한다면 eject해서 webpack 설정해야 하는데 굉장히 번거롭다.
+- runtime에서 css polyfill를 사용할 수 없어 브라우저 버전 이슈가 있을 수 있다
+
+첫 load는 빠르지만, 첫 paint는 느릴 수 있다.
+
+![image.png](/images/contents/css-runtime-bundle.png)
+
+css styles까지 모두 로드가 되어야 첫 paint를 시작된다.
+
+반면 runtime에서는 style를 로드하면서 첫 paint를 시작할 수 있다. ( 로딩화면 )
+
+대표적으로는 linaria, vanilla-extrat가 있다.
+
+## near-zero-runtime (stitches)
+
+- SSR 환경에서도 잘 동작이 되도록 세팅이 되었다.
+- runtime overhead와 zero-runtime의 제약을 해결 ⇒ 빠르다 > [benchmarks](https://stitches.dev/docs/benchmarks)
+
+## CSS-in-JS 사용에 고려할 사항
+
+- runtime overhead가 발생할 될 서비스인가?
+  - 없다면 기존 runtime CSS-in-JS를 써도 전혀 문제가 없을 것이다.
+- SSR인가 CSR인가?
+  - SSR를 설정하기 불편한 것이 있고 Critical CSS 최적화된 것이 있다.
+  - CSR는 runtime stylesheets, SSR는 static CSS에 이점을 갖는다. [참고](https://andreipfeiffer.dev/blog/2021/css-in-js-styles-output#to-conclude)
+
+멋진 개발팀들에서는 어떻게 라이브러리를 선택하는지 살펴보면 큰 도움이 될 것이다.
+
+[https://github.com/mui-org/material-ui/issues/22342](https://github.com/mui-org/material-ui/issues/22342)
+
+# 주요 라이브러리 특징 및 비교
+
+## styled-components
+
+장점
+
+- 배우기 쉽고 React와 잘 통합
+- styled.button, ThemeProvider 등 API 직관적
+- 스타일 정의와 로직이 가까움 → 높은 응집도
+
+단점
+
+- 런타임 성능 저하 가능 (특히 대규모 앱)
+- 스타일 정적 추출 어려움
+
+추천 상황
+
+- 중소형 프로젝트
+- 빠르게 시작하고 싶은 React 앱
+- 디자인 시스템이 크지 않을 때
+
+## Emotion
+
+장점
+
+- styled-components와 비슷하지만 더 빠르고 유연
+- css prop, cx, keyframes 등 다양한 사용 방식
+- 정적 추출 가능 (babel 플러그인 사용 시)
+- Next.js 공식 지원
+
+단점
+
+- 다양한 사용 방식이 오히려 혼란 줄 수 있음
+- 설정이 styled-components보다 살짝 복잡
+
+추천 상황
+
+- MUI v5와 같이 쓸 때 (공식 채택됨)
+- 정적 추출이나 퍼포먼스가 중요한 프로젝트
+- styled 방식과 CSS prop을 혼합하고 싶을 때
+
+## Stitches
+
+장점
+
+- 빠른 빌드와 런타임
+- 타입스크립트 완벽 지원
+- 디자인 토큰, variants 내장
+- 정적 CSS 추출
+
+단점
+
+- 상대적으로 작은 커뮤니티
+- 일부 스타일링 방식 제한
+
+추천 상황
+
+- 타입 안정성이 매우 중요한 팀
+- 디자인 시스템을 처음부터 잘 설계할 때
+- 빌드 성능과 정적 CSS가 필요한 경우
+
+## vanilla-extract
+
+장점
+
+- 완전 정적 CSS 생성 (진짜 CSS 파일 생성됨)
+- 타입스크립트 기반으로 설계됨
+- 스타일이 실제 CSS처럼 작동 (우선순위, 미디어쿼리 등 강력함)
+
+단점
+
+- 스타일 작성이 꽤 복잡
+- 진입 장벽이 높고 문법이 낯설 수 있음
+
+추천 상황
+
+- 대규모 앱 (ex. enterprise, 퍼포먼스 민감)
+- SEO, SSR, 빌드 최적화가 필요한 프로젝트
+- 팀 내 타입 안정성과 유지보수성이 중요한 경우
+
+## 요약
+
+| 상황                               | 추천 라이브러리                    |
+| ---------------------------------- | ---------------------------------- |
+| 빠르게 개발하고 싶을 때            | styled-components                  |
+| 퍼포먼스와 정적 추출 중요할 때     | Emotion, Stitches, vanilla-extract |
+| 타입 안정성이 매우 중요할 때       | Stitches, vanilla-extract          |
+| MUI v5 기반일 때                   | Emotion (공식 지원)                |
+| CSS를 진짜로 뽑고 싶을 때 (SEO 등) | vanilla-extract                    |
+
+## 궁금한 점
+
+각 라이브러리들의 특징을 비교하면서 아래와 같은 질문들이 떠올랐다.
+
+정적 추출을 해야하는 상황은 언제인가?
+
+1. 정적추출: JavaScript에서 정의한 스타일을 브라우저에 도달하기 전에 미리 CSS 파일로 분리해서 HTML에 "link"로 포함시키는 방식
+2. SEO가 중요한 프로젝트
+   1. 검색 엔진은 JS가 실행되기 전에 페이지를 읽기 때문에, 스타일이 늦게 렌더링되면 레이아웃이 깨진 채로 인식됨
+   2. 정적 CSS를 "head"에 미리 넣으면 스타일이 즉시 적용됨
+3. **퍼포먼스 최적화가 중요한 대규모 프로젝트**
+   1. 런타임에 스타일을 생성하려면
+      1. JS 코드 실행 → 해시 계산 → "style" 삽입
+   2. 이 과정은 브라우저에 부하를 줄 수 있음
+
+   → **정적 CSS는 이 과정을 생략하고 곧바로 렌더링 가능**
+
+특히,
+
+- 모바일 저사양 디바이스
+- 첫 화면 로딩 속도(FCP, LCP 등) 민감할 때
+
+스타일이 props에 따라 자주 변할때는 오히려 정적추출을 사용하지 않는다.
+
+타입 안정성이 더 뛰어나야하는 상황은 언제인가?
+
+1. 얘는 안전성이 좋을수록 좋은거라 언제 특히 뛰어나야하는 상황이 언제인지는 모르겠다.
+
+# 참고
+
+[CSS-in-JS 라이브러리들에 대한 고찰](https://bepyan.github.io/blog/2022/css-in-js)
+
+[코드관리와 퍼포먼스 관점에서의 CSS-in-JS vs CSS in CSS](https://jaddong.tistory.com/entry/%EC%BD%94%EB%93%9C%EA%B4%80%EB%A6%AC%EC%99%80-%ED%8D%BC%ED%8F%AC%EB%A8%BC%EC%8A%A4-%EA%B4%80%EC%A0%90%EC%97%90%EC%84%9C%EC%9D%98-CSS-in-JS-vs-CSS-in-CSS)
+
+[(번역) 우리가 CSS-in-JS와 헤어지는 이유](https://junghan92.medium.com/%EB%B2%88%EC%97%AD-%EC%9A%B0%EB%A6%AC%EA%B0%80-css-in-js%EC%99%80-%ED%97%A4%EC%96%B4%EC%A7%80%EB%8A%94-%EC%9D%B4%EC%9C%A0-a2e726d6ace6)
+
+[[우아한테크코스] 모락팀의 css in js 라이브러리 선택은? (styled-component와 emotion을 비교하여)](https://velog.io/@rladpwl0512/%EC%9A%B0%EC%95%84%ED%95%9C%ED%85%8C%ED%81%AC%EC%BD%94%EC%8A%A4-%EB%AA%A8%EB%9D%BD%ED%8C%80%EC%9D%98-css-in-js-%EB%9D%BC%EC%9D%B4%EB%B8%8C%EB%9F%AC%EB%A6%AC-%EC%84%A0%ED%83%9D%EC%9D%80-styled-component%EC%99%80-emotion%EC%9D%84-%EB%B9%84%EA%B5%90%ED%95%98%EC%97%AC)

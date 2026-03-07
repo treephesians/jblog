@@ -1,0 +1,65 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { LogIn, LogOut } from "lucide-react";
+import type { User } from "@/lib/types/user";
+import { useGoogleLogin, useLogout } from "@/hooks/use-current-user";
+
+interface AuthButtonProps {
+  user: User | null;
+}
+
+export function AuthButton({ user }: AuthButtonProps) {
+  const googleLogin = useGoogleLogin();
+  const logout = useLogout();
+
+  if (!user) {
+    return (
+      <Button variant="ghost" size="icon" className="cursor-pointer" onClick={googleLogin}>
+        <LogIn className="h-5 w-5" />
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full cursor-pointer">
+          <Avatar className="h-6 w-6">
+            {user.avatar_url && <AvatarImage src={user.avatar_url} alt="" />}
+            <AvatarFallback>
+              {user.email?.[0]?.toUpperCase() ?? "?"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="sr-only">사용자 메뉴</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {user.full_name || "사용자"}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>로그아웃</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
