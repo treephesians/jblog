@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import type { User } from "@/lib/types/user";
+import type { User } from "@/lib/types";
 import { AuthButton } from "@/components/layout/auth-button";
 
 const navItems = [

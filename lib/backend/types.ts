@@ -1,5 +1,4 @@
-import type { User } from "@/lib/types/user";
-import type { PostStats, PostComment, CommentUserInfo } from "@/lib/types/api";
+import type { User, PostStats, PostComment, CommentUserInfo } from "@/lib/types";
 
 export type { User, PostStats, PostComment, CommentUserInfo };
 

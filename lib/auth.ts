@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import type { User } from '@/lib/types/user';
+import type { User } from '@/lib/types';
 import { authProvider } from '@/lib/backend';
 
 export async function getCurrentUser(): Promise<User | null> {

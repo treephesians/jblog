@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { postProvider } from "@/lib/backend";
-import type { PostComment, PostStats, CommentUserInfo } from "@/lib/types/api";
+import type { PostComment, PostStats, CommentUserInfo } from "@/lib/types";
 
 export type { PostComment, PostStats, CommentUserInfo };
 

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogIn, LogOut } from "lucide-react";
-import type { User } from "@/lib/types/user";
+import type { User } from "@/lib/types";
 import { useGoogleLogin, useLogout } from "@/hooks/use-current-user";
 
 interface AuthButtonProps {
