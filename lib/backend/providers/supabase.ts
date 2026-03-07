@@ -58,7 +58,7 @@ export const supabaseAuthProvider: AuthProvider = {
 
   async login(): Promise<void> {
     const supabase = getBrowserClient();
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/api/auth/callback`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
