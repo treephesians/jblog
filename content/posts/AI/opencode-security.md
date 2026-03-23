@@ -1,0 +1,318 @@
+---
+title: "OpenCode 회사에서 써도 될까?"
+description: "OpenCode를 사용할 때 코드 유출이 안되는지 분석합니다."
+date: "2026-03-23"
+category: "AI"
+tags: ["review", "ai", "agent"]
+thumbnail: "/images/thumbnails/opencode-analysis.png"
+---
+
+# OpenCode 보안 분석: 회사 노트북에서 써도 될까?
+
+오픈소스 AI 코딩 에이전트 OpenCode를 회사에서 쓰고 싶은데, 보안팀한테 혼날까봐 걱정된다면 이 글을 읽어라. 직접 코드를 뜯어보고 어디서 뭘 보내는지 다 찾아봤다.
+
+![Trust me bro](https://media.giphy.com/media/l0IylOPCNkiqOgMyA/giphy.gif)
+
+## TL;DR
+
+- OpenCode는 **Sentry, Mixpanel 같은 분석 도구 없음** ✅
+- 세션 공유 기능이 기본 활성화되어 있음 → **반드시 비활성화 필요**
+- `OPENCODE_DISABLE_SHARE=true` 설정하면 LLM 프로바이더 외에는 데이터 안 나감
+
+---
+
+## 1단계: 외부 호출 직접 찾아보기
+
+남이 "안전해요~"라고 하면 믿을 수 있나? 직접 확인해야 한다.
+
+### grep으로 모든 외부 호출 찾기
+
+```bash
+cd /path/to/opencode
+grep -rn "fetch(" packages/opencode/src --include="*.ts" | head -50
+```
+
+이렇게 하면 `fetch()` 호출이 있는 모든 파일을 찾을 수 있다.
+
+### 내가 찾은 결과
+
+```
+packages/opencode/src/share/share-next.ts:72:    const result = await fetch(`${await url()}/api/share`
+packages/opencode/src/control/index.ts:36:    const res = await fetch(`${row.url}/oauth/token`
+packages/opencode/src/tool/websearch.ts:103:   const response = await fetch(`${API_CONFIG.BASE_URL}...`
+packages/opencode/src/tool/codesearch.ts:85:   const response = await fetch(`${API_CONFIG.BASE_URL}...`
+packages/opencode/src/installation/index.ts:208: return fetch("https://formulae.brew.sh/api/...
+... (총 40개 이상)
+```
+
+![Sweating intensifies](https://media.giphy.com/media/32mC2kXYWCsg0/giphy.gif)
+
+40개나 있어서 좀 당황했는데, 하나씩 분석해보니까 대부분은 괜찮았다.
+
+---
+
+## 2단계: 위험도별 분류
+
+### 🔴 진짜 위험한 것 (코드/대화 유출)
+
+#### 1. 세션 공유 (`share-next.ts`)
+
+```typescript
+// share-next.ts:72
+const result = await fetch(`${await url()}/api/share`, {
+  method: "POST",
+  body: JSON.stringify({ sessionID: sessionID }),
+})
+```
+
+**뭘 보내나?**
+- 세션 전체 (대화 내용, 코드, 파일 내용)
+- `opncd.ai` 서버로 전송
+
+**어디로?**
+- 기본값: `https://opncd.ai`
+- 엔터프라이즈 설정 시 커스텀 URL
+
+![This is fine](https://media.giphy.com/media/QMHoU66sBXqqLqYvGO/giphy.gif)
+
+이게 제일 위험하다. 세션 공유 버튼 안 눌러도 **백그라운드에서 sync가 일어날 수 있다**.
+
+```typescript
+// share-next.ts:23-66
+Bus.subscribe(Session.Event.Updated, async (evt) => {
+  await sync(evt.properties.info.id, [...])  // 세션 업데이트마다 실행
+})
+Bus.subscribe(MessageV2.Event.Updated, async (evt) => {
+  await sync(evt.properties.info.sessionID, [...])  // 메시지마다 실행
+})
+```
+
+**비활성화 방법:**
+```bash
+export OPENCODE_DISABLE_SHARE=true
+```
+
+다행히 코드 첫 부분에서 체크한다:
+```typescript
+// share-next.ts:19
+const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true"
+```
+
+---
+
+#### 2. LLM 프로바이더 (피할 수 없음)
+
+```typescript
+// provider.ts:406
+return fetch(input, { ...init, headers })
+```
+
+**뭘 보내나?**
+- 프롬프트
+- 코드 컨텍스트
+- 파일 내용
+
+이건 비활성화할 수 없다. AI 에이전트니까. 대신 **어떤 프로바이더를 쓰느냐**가 중요하다.
+
+| 프로바이더 | 회사용 추천 |
+|-----------|-------------|
+| Azure OpenAI | ⭐ 엔터프라이즈 정책 적용 가능 |
+| AWS Bedrock | ⭐ VPC 내부 배포 가능 |
+| Anthropic 직접 | 보통 (데이터 학습에 미사용 명시) |
+| OpenAI 직접 | 보통 |
+
+---
+
+### 🟡 검색 쿼리만 나가는 것
+
+#### websearch / codesearch
+
+```typescript
+// websearch.ts:103
+const response = await fetch(`https://mcp.exa.ai/mcp`, {
+  body: JSON.stringify({
+    params: {
+      arguments: {
+        query: params.query,  // 검색어만!
+      },
+    },
+  }),
+})
+```
+
+**뭘 보내나?**
+- 검색 쿼리 (예: "React useState examples")
+- 검색 옵션
+
+**뭘 안 보내나?**
+- 소스 코드 ❌
+- 파일 내용 ❌
+- 대화 히스토리 ❌
+
+Google 검색하는 거랑 똑같다. 다만 검색어에 "우리 회사 ABC 프로젝트" 이런 거 넣으면 노출될 수 있으니 주의.
+
+---
+
+### 🟢 별로 위험하지 않은 것
+
+#### 버전 체크 (installation/index.ts)
+
+```typescript
+// 설치 방법에 따라 다른 서버 호출
+fetch("https://formulae.brew.sh/api/formula/opencode.json")  // brew
+fetch("https://registry.npmjs.org/opencode-ai/latest")       // npm
+fetch("https://api.github.com/repos/anomalyco/opencode/releases/latest")  // curl
+```
+
+최신 버전 있는지만 확인한다. 내 코드 안 보낸다.
+
+#### LSP 서버 다운로드 (lsp/server.ts)
+
+```typescript
+const response = await fetch("https://github.com/microsoft/vscode-eslint/archive/refs/heads/main.zip")
+```
+
+언어 서버 바이너리 다운로드용. 내 코드 안 보냄.
+
+---
+
+## 3단계: 텔레메트리 확인
+
+혹시 Sentry나 Mixpanel 같은 거 숨겨놨나?
+
+```bash
+grep -rn "sentry\|mixpanel\|amplitude\|analytics" packages/opencode/src --include="*.ts"
+```
+
+**결과: 없음** ✅
+
+OpenTelemetry는 있는데:
+```typescript
+// config/config.ts:1154
+openTelemetry: z.boolean().default(false)  // 기본 비활성화
+```
+
+기본 꺼져있고, 켜도 로컬 스팬 수집용이다. 외부 전송 아님.
+
+![Nice](https://media.giphy.com/media/yJFeycRK2DB4c/giphy.gif)
+
+---
+
+## 4단계: 실제 설정하기
+
+### 필수 설정 (반드시 해라)
+
+`~/.zshrc` 또는 `~/.bashrc`에 추가:
+
+```bash
+# 세션 공유 완전 비활성화
+export OPENCODE_DISABLE_SHARE=true
+```
+
+이거 하나면 90%는 해결된다.
+
+### 권장 설정
+
+```bash
+# API 키 직접 설정 (OAuth 미사용)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 또는 회사 승인된 Azure OpenAI 사용
+export AZURE_OPENAI_API_KEY="..."
+export AZURE_OPENAI_ENDPOINT="https://your-company.openai.azure.com"
+```
+
+### opencode.json 정리
+
+프로젝트 루트의 `opencode.json`에서 외부 연결 제거:
+
+```json
+{
+  "mcp": {},
+  "instructions": [
+    "AGENTS.md"
+  ]
+}
+```
+
+`instructions`에 `https://...` URL이 있으면 제거하라. 외부에서 instruction 가져오는 거다.
+
+---
+
+## 5단계: 네트워크 모니터링으로 검증
+
+설정 다 했으면 진짜 안 나가는지 확인해보자.
+
+### macOS에서
+
+```bash
+# 터미널 1: 네트워크 모니터링
+sudo tcpdump -i any -n port 443 2>/dev/null | grep -E "opncd|opencode\.ai|exa\.ai"
+
+# 터미널 2: OpenCode 실행
+OPENCODE_DISABLE_SHARE=true opencode
+```
+
+아무것도 안 뜨면 성공.
+
+### Charles Proxy나 mitmproxy로 더 자세히
+
+```bash
+# mitmproxy 설치
+brew install mitmproxy
+
+# 프록시 시작
+mitmproxy -p 8080
+
+# 다른 터미널에서
+export HTTPS_PROXY=http://localhost:8080
+export HTTP_PROXY=http://localhost:8080
+OPENCODE_DISABLE_SHARE=true opencode
+```
+
+실제로 어떤 요청이 나가는지 다 볼 수 있다.
+
+---
+
+## 보안팀 보고용 체크리스트
+
+```markdown
+## OpenCode 보안 검토 결과
+
+### 분석 방법
+- 소스 코드 직접 분석 (grep으로 fetch 호출 검색)
+- 네트워크 트래픽 모니터링
+
+### 외부 통신 목록
+| 대상 | 목적 | 전송 데이터 | 비활성화 |
+|------|------|-------------|----------|
+| LLM 프로바이더 | AI 기능 | 프롬프트, 코드 | 불가 (핵심 기능) |
+| opncd.ai | 세션 공유 | 세션 전체 | ✅ OPENCODE_DISABLE_SHARE=true |
+| mcp.exa.ai | 웹 검색 | 검색 쿼리 | 도구 미사용 |
+| npm/brew/github | 버전 체크 | 없음 | - |
+
+### 텔레메트리
+- Sentry, Mixpanel 등 분석 도구: **없음**
+- OpenTelemetry: 기본 비활성화, 활성화해도 로컬 전용
+
+### 적용한 보안 설정
+- [x] OPENCODE_DISABLE_SHARE=true 환경변수 설정
+- [x] 로컬 API 키 사용 (OAuth 미사용)
+- [x] MCP 서버 미설정
+- [x] 외부 instruction URL 미사용
+- [x] 네트워크 모니터링으로 검증 완료
+```
+
+---
+
+## 결론
+
+OpenCode는 오픈소스라서 뭘 보내는지 다 확인할 수 있다. 코드 분석 결과:
+
+1. **분석 도구 없음** - Sentry, Mixpanel 같은 거 안 씀
+2. **세션 공유가 유일한 문제** - `OPENCODE_DISABLE_SHARE=true`로 해결
+3. **LLM 프로바이더는 피할 수 없음** - 회사 정책에 맞는 프로바이더 선택
+
+![Mission accomplished](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
+
+`OPENCODE_DISABLE_SHARE=true` 하나만 기억해라. 끝.
