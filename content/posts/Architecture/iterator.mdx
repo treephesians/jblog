@@ -1,0 +1,446 @@
+---
+title: "Iterator 패턴"
+description: "배열, 트리, 그래프 등 다양한 자료구조를 동일한 방식으로 순회할 수 있게 해주는 Iterator 패턴을 알아본다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "behavioral", "architecture"]
+thumbnail: "/images/thumbnails/iterator.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 15
+---
+
+# 배열, 트리, 그래프를 같은 방법으로 순회할 수 있다면?
+
+데이터를 저장하는 방식은 다양하다. 배열에 넣을 수도 있고, 트리 구조로 만들 수도 있고, 그래프로 연결할 수도 있다.
+
+그런데 이 데이터들을 꺼내서 하나씩 살펴봐야 할 때, 매번 자료구조마다 다른 방식으로 순회해야 한다면?
+
+```typescript
+// 배열이면 이렇게
+for (let i = 0; i < array.length; i++) { ... }
+
+// 트리면 이렇게
+function traverse(node: TreeNode) {
+  visit(node);
+  for (const child of node.children) traverse(child);
+}
+
+// 그래프면 또 이렇게
+function bfs(graph: Graph, start: Node) {
+  const queue = [start];
+  const visited = new Set();
+  while (queue.length > 0) { ... }
+}
+```
+
+순회하는 쪽 코드가 자료구조의 **내부 구조를 전부 알아야** 한다. 자료구조가 바뀌면? 순회 코드도 전부 바뀐다.
+
+![복잡](https://media.giphy.com/media/xT5LMHxhOfscxPfIfm/giphy.gif)
+
+이 문제를 해결하는 패턴이 있다.
+
+---
+
+## Iterator란?
+
+> 컬렉션의 **내부 구조를 노출하지 않고**, 요소들에 **순차적으로 접근**할 수 있게 해주는 패턴
+
+핵심 아이디어는 간단하다. 순회 로직을 컬렉션에서 **분리**해서 별도의 **Iterator 객체**에 담는다.
+
+Iterator는 딱 두 가지만 알면 된다.
+
+1. **다음 요소가 있는가?** → `hasNext()`
+2. **다음 요소를 달라** → `next()`
+
+이것만으로 어떤 자료구조든 동일한 인터페이스로 순회할 수 있다.
+
+---
+
+## 코드로 보기
+
+### 플레이리스트 — 장르별, 아티스트별, 셔플 순회
+
+음악 플레이리스트를 생각해보자. 같은 플레이리스트를 **장르별로** 듣고 싶을 때도 있고, **아티스트별로** 듣고 싶을 때도 있고, **셔플로** 듣고 싶을 때도 있다.
+
+```typescript
+// 곡 정보
+interface Song {
+  title: string;
+  artist: string;
+  genre: string;
+  durationSec: number;
+}
+
+// Iterator 인터페이스
+interface MusicIterator {
+  hasNext(): boolean;
+  next(): Song;
+  reset(): void;
+}
+```
+
+### Iterator 구현들
+
+```typescript
+// 1. 장르별 Iterator — 특정 장르만 순회
+class GenreIterator implements MusicIterator {
+  private position = 0;
+  private filtered: Song[];
+
+  constructor(songs: Song[], private genre: string) {
+    this.filtered = songs.filter((s) => s.genre === genre);
+  }
+
+  hasNext(): boolean {
+    return this.position < this.filtered.length;
+  }
+
+  next(): Song {
+    if (!this.hasNext()) throw new Error("No more songs");
+    return this.filtered[this.position++];
+  }
+
+  reset(): void {
+    this.position = 0;
+  }
+}
+
+// 2. 아티스트별 Iterator — 같은 아티스트 곡만 순회
+class ArtistIterator implements MusicIterator {
+  private position = 0;
+  private filtered: Song[];
+
+  constructor(songs: Song[], private artist: string) {
+    this.filtered = songs.filter((s) => s.artist === artist);
+  }
+
+  hasNext(): boolean {
+    return this.position < this.filtered.length;
+  }
+
+  next(): Song {
+    if (!this.hasNext()) throw new Error("No more songs");
+    return this.filtered[this.position++];
+  }
+
+  reset(): void {
+    this.position = 0;
+  }
+}
+
+// 3. 셔플 Iterator — 랜덤 순서로 순회
+class ShuffleIterator implements MusicIterator {
+  private position = 0;
+  private shuffled: Song[];
+
+  constructor(songs: Song[]) {
+    this.shuffled = [...songs].sort(() => Math.random() - 0.5);
+  }
+
+  hasNext(): boolean {
+    return this.position < this.shuffled.length;
+  }
+
+  next(): Song {
+    if (!this.hasNext()) throw new Error("No more songs");
+    return this.shuffled[this.position++];
+  }
+
+  reset(): void {
+    this.position = 0;
+    this.shuffled.sort(() => Math.random() - 0.5); // 다시 섞기
+  }
+}
+```
+
+### 플레이리스트 컬렉션
+
+```typescript
+class Playlist {
+  private songs: Song[] = [];
+
+  addSong(song: Song): void {
+    this.songs.push(song);
+  }
+
+  // 다양한 Iterator를 생성
+  createGenreIterator(genre: string): MusicIterator {
+    return new GenreIterator(this.songs, genre);
+  }
+
+  createArtistIterator(artist: string): MusicIterator {
+    return new ArtistIterator(this.songs, artist);
+  }
+
+  createShuffleIterator(): MusicIterator {
+    return new ShuffleIterator(this.songs);
+  }
+}
+```
+
+### 사용
+
+```typescript
+const playlist = new Playlist();
+playlist.addSong({ title: "Ditto", artist: "NewJeans", genre: "Pop", durationSec: 185 });
+playlist.addSong({ title: "Hype Boy", artist: "NewJeans", genre: "Pop", durationSec: 179 });
+playlist.addSong({ title: "SPOT!", artist: "ZICO", genre: "Hip-Hop", durationSec: 195 });
+playlist.addSong({ title: "Supernova", artist: "aespa", genre: "Pop", durationSec: 205 });
+playlist.addSong({ title: "Drama", artist: "aespa", genre: "Pop", durationSec: 212 });
+
+// 어떤 Iterator든 동일한 방식으로 순회
+function playAll(iterator: MusicIterator): void {
+  while (iterator.hasNext()) {
+    const song = iterator.next();
+    console.log(`🎵 ${song.title} - ${song.artist}`);
+  }
+}
+
+// Pop 장르만
+playAll(playlist.createGenreIterator("Pop"));
+// 🎵 Ditto - NewJeans
+// 🎵 Hype Boy - NewJeans
+// 🎵 Supernova - aespa
+// 🎵 Drama - aespa
+
+// aespa 곡만
+playAll(playlist.createArtistIterator("aespa"));
+// 🎵 Supernova - aespa
+// 🎵 Drama - aespa
+
+// 셔플!
+playAll(playlist.createShuffleIterator());
+// (랜덤 순서)
+```
+
+핵심은 `playAll` 함수가 **어떤 Iterator가 오든 신경 쓰지 않는다**는 것이다. `hasNext()`와 `next()`만 있으면 된다.
+
+![음악 셔플](https://media.giphy.com/media/l0HlNQ03J5JxX2rza/giphy.gif)
+
+---
+
+## JavaScript의 내장 Iterator 프로토콜
+
+사실 JavaScript에는 Iterator 패턴이 **언어 레벨**에 내장되어 있다. 바로 `Symbol.iterator`다.
+
+### Symbol.iterator와 for...of
+
+```typescript
+// Symbol.iterator를 구현하면 for...of를 쓸 수 있다
+class NumberRange {
+  constructor(private start: number, private end: number) {}
+
+  [Symbol.iterator](): Iterator<number> {
+    let current = this.start;
+    const end = this.end;
+
+    return {
+      next(): IteratorResult<number> {
+        if (current <= end) {
+          return { value: current++, done: false };
+        }
+        return { value: undefined as any, done: true };
+      },
+    };
+  }
+}
+
+const range = new NumberRange(1, 5);
+
+// for...of가 내부적으로 Symbol.iterator를 호출한다
+for (const num of range) {
+  console.log(num); // 1, 2, 3, 4, 5
+}
+
+// 전개 연산자도 동작한다
+const arr = [...range]; // [1, 2, 3, 4, 5]
+
+// 구조 분해도 된다
+const [first, second] = range; // 1, 2
+```
+
+### Generator — Iterator를 쉽게 만드는 방법
+
+`function*`를 쓰면 Iterator를 훨씬 간결하게 만들 수 있다.
+
+```typescript
+// Generator로 무한 피보나치 수열
+function* fibonacci(): Generator<number> {
+  let [a, b] = [0, 1];
+  while (true) {
+    yield a;
+    [a, b] = [b, a + b];
+  }
+}
+
+// 필요한 만큼만 꺼내 쓴다 — Lazy Evaluation!
+const fib = fibonacci();
+console.log(fib.next().value); // 0
+console.log(fib.next().value); // 1
+console.log(fib.next().value); // 1
+console.log(fib.next().value); // 2
+console.log(fib.next().value); // 3
+
+// 트리 순회도 Generator로 깔끔하게
+interface TreeNode<T> {
+  value: T;
+  children: TreeNode<T>[];
+}
+
+function* traverseTree<T>(node: TreeNode<T>): Generator<T> {
+  yield node.value;
+  for (const child of node.children) {
+    yield* traverseTree(child); // yield*로 재귀 위임
+  }
+}
+
+const tree: TreeNode<string> = {
+  value: "root",
+  children: [
+    { value: "A", children: [{ value: "A1", children: [] }] },
+    { value: "B", children: [{ value: "B1", children: [] }, { value: "B2", children: [] }] },
+  ],
+};
+
+for (const value of traverseTree(tree)) {
+  console.log(value); // root, A, A1, B, B1, B2
+}
+```
+
+Generator의 `yield`는 **게으른 평가(Lazy Evaluation)**를 가능하게 한다. 무한한 데이터도 필요한 만큼만 생성하니까 메모리 걱정이 없다.
+
+---
+
+## 실전에서 만나는 Iterator
+
+### 1. 데이터베이스 커서 페이지네이션
+
+대량의 데이터를 한 번에 불러오면 메모리가 터진다. 커서 기반 페이지네이션이 바로 Iterator 패턴이다.
+
+```typescript
+interface PaginationCursor<T> {
+  hasNext(): Promise<boolean>;
+  next(): Promise<T[]>;
+}
+
+class DatabaseCursor<T> implements PaginationCursor<T> {
+  private cursor: string | null = null;
+  private exhausted = false;
+
+  constructor(
+    private query: string,
+    private pageSize: number,
+    private db: DatabaseClient
+  ) {}
+
+  async hasNext(): Promise<boolean> {
+    return !this.exhausted;
+  }
+
+  async next(): Promise<T[]> {
+    const result = await this.db.query(this.query, {
+      cursor: this.cursor,
+      limit: this.pageSize,
+    });
+
+    this.cursor = result.nextCursor;
+    this.exhausted = !result.nextCursor;
+
+    return result.data;
+  }
+}
+
+// 사용: 10만 건의 유저 데이터를 1000건씩 처리
+const cursor = new DatabaseCursor<User>("SELECT * FROM users", 1000, db);
+
+while (await cursor.hasNext()) {
+  const batch = await cursor.next();
+  await processBatch(batch); // 1000건씩 끊어서 처리
+}
+```
+
+한 번에 10만 건을 메모리에 올리는 대신, 1000건씩 가져와서 처리한다. 이게 Iterator의 힘이다.
+
+### 2. React의 Children 순회
+
+React의 `React.Children`도 Iterator 패턴이다. children의 내부 구조(단일 노드, 배열, Fragment)를 몰라도 순회할 수 있다.
+
+```tsx
+import React from "react";
+
+function Toolbar({ children }: { children: React.ReactNode }) {
+  // children이 하나든 여러 개든 Fragment든 상관없이 순회
+  return (
+    <div className="toolbar">
+      {React.Children.map(children, (child, index) => (
+        <div className="toolbar-item" key={index}>
+          {child}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 이렇게 써도
+<Toolbar>
+  <Button />
+</Toolbar>
+
+// 이렇게 써도
+<Toolbar>
+  <Button />
+  <Button />
+  <Separator />
+  <Button />
+</Toolbar>
+
+// 내부 순회 로직은 동일하다
+```
+
+`React.Children.map`은 children이 단일 노드인지, 배열인지, `null`인지 신경 쓸 필요 없이 안전하게 순회할 수 있게 해준다.
+
+![순회 완료](https://media.giphy.com/media/xT0xeJpnrWC3nWcJxm/giphy.gif)
+
+---
+
+## 언제 사용하면 좋을까?
+
+1. **컬렉션의 내부 구조를 숨기고 싶을 때**
+   - 복잡한 트리나 그래프를 단순한 인터페이스로 순회
+
+2. **같은 컬렉션을 여러 방식으로 순회해야 할 때**
+   - 정렬 순서, 필터링, DFS/BFS 등 순회 전략을 교체
+
+3. **대량 데이터를 지연 평가(Lazy Evaluation)로 처리할 때**
+   - 커서 페이지네이션, 스트림 처리, 무한 수열
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| 컬렉션 내부 구조를 캡슐화 | 단순한 컬렉션에는 오버 엔지니어링 |
+| 동일한 인터페이스로 다양한 자료구조 순회 | Iterator 객체가 추가 메모리를 사용 |
+| 여러 순회 방식을 독립적으로 구현 가능 | 양방향 순회 등 복잡한 순회는 구현이 번거로움 |
+| SRP — 순회 로직이 컬렉션에서 분리됨 | 컬렉션이 변경되면 기존 Iterator가 무효화될 수 있음 |
+
+---
+
+## 정리하며
+
+Iterator는 **컬렉션의 내부를 몰라도 요소를 하나씩 꺼낼 수 있게** 해주는 패턴이다.
+
+핵심을 한 줄로 요약하면,
+
+> **"어떻게 저장되어 있든, 하나씩 꺼내는 방법은 같다"**
+
+JavaScript의 `Symbol.iterator`, `for...of`, Generator는 이 패턴이 언어에 녹아든 대표적인 사례다. 이미 매일 쓰고 있었던 셈이다.
+
+---
+
+# Reference
+
+[Refactoring Guru - Iterator](https://refactoring.guru/design-patterns/iterator)

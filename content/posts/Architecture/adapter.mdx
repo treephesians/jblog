@@ -1,0 +1,270 @@
+---
+title: "Adapter 패턴"
+description: "호환되지 않는 인터페이스를 연결해주는 Adapter 패턴을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "structural", "architecture"]
+thumbnail: "/images/thumbnails/adapter.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 6
+---
+
+# 220V 콘센트에 110V 플러그를?
+
+해외여행을 가면 가장 먼저 챙기는 게 뭘까?
+
+**돼지코(어댑터)**다.
+
+한국 플러그(220V)는 미국 콘센트(110V)에 꽂을 수 없다. 하지만 어댑터를 끼우면 잘 된다.
+
+소프트웨어에서도 똑같은 상황이 생긴다.
+
+```typescript
+// 우리 시스템은 이 인터페이스를 기대한다
+interface PaymentProcessor {
+  charge(amount: number, currency: string): Promise<PaymentResult>;
+}
+
+// 그런데 새로 도입한 외부 라이브러리는 이렇게 생겼다
+class StripeSdk {
+  createPaymentIntent(cents: number, cur: string): Promise<StripeResponse> {
+    // ...
+  }
+}
+```
+
+메서드 이름도 다르고, 단위도 다르다 (원 vs 센트). 호환이 안 된다.
+
+![꽂히질 않는다](https://media.giphy.com/media/3o7btNa0RUYa5E7iiQ/giphy.gif)
+
+이때 **Adapter**를 만들면 된다.
+
+---
+
+## Adapter란?
+
+> 호환되지 않는 인터페이스를 가진 객체들이 **함께 작동할 수 있도록** 중간에서 변환해주는 패턴
+
+핵심은 간단하다. **기존 코드를 수정하지 않고**, 중간에 변환 레이어를 하나 끼워 넣는 것이다.
+
+---
+
+## 코드로 보기
+
+### 문제 상황
+
+우리 결제 시스템은 `PaymentProcessor` 인터페이스를 쓴다.
+
+```typescript
+interface PaymentResult {
+  success: boolean;
+  transactionId: string;
+}
+
+interface PaymentProcessor {
+  charge(amount: number, currency: string): Promise<PaymentResult>;
+}
+
+// 기존에 잘 쓰던 결제 모듈
+class InternalPayment implements PaymentProcessor {
+  async charge(amount: number, currency: string): Promise<PaymentResult> {
+    console.log(`내부 결제: ${amount} ${currency}`);
+    return { success: true, transactionId: "internal-123" };
+  }
+}
+```
+
+그런데 Stripe를 도입하게 되었다. Stripe SDK의 인터페이스는 완전히 다르다.
+
+```typescript
+// Stripe SDK — 우리가 수정할 수 없는 외부 코드
+class StripeSdk {
+  async createPaymentIntent(
+    amountInCents: number,
+    currency: string,
+  ): Promise<{ id: string; status: string }> {
+    console.log(`Stripe 결제: ${amountInCents}cents ${currency}`);
+    return { id: "pi_abc123", status: "succeeded" };
+  }
+}
+```
+
+### Adapter 적용
+
+```typescript
+class StripeAdapter implements PaymentProcessor {
+  private stripe: StripeSdk;
+
+  constructor() {
+    this.stripe = new StripeSdk();
+  }
+
+  async charge(amount: number, currency: string): Promise<PaymentResult> {
+    // 1. 단위 변환: 원 → 센트
+    const amountInCents = Math.round(amount * 100);
+
+    // 2. Stripe SDK 호출 (메서드 이름이 달라도 OK)
+    const response = await this.stripe.createPaymentIntent(
+      amountInCents,
+      currency,
+    );
+
+    // 3. 결과를 우리 인터페이스에 맞게 변환
+    return {
+      success: response.status === "succeeded",
+      transactionId: response.id,
+    };
+  }
+}
+```
+
+사용하는 쪽에서는 차이를 전혀 모른다.
+
+```typescript
+async function processOrder(processor: PaymentProcessor) {
+  const result = await processor.charge(50000, "KRW");
+  console.log(result);
+}
+
+// 내부 결제든 Stripe든 같은 방식으로 사용
+processOrder(new InternalPayment());
+processOrder(new StripeAdapter());
+```
+
+![깔끔](https://media.giphy.com/media/yJFeycRK2DB4c/giphy.gif)
+
+---
+
+## 실무에서 자주 만나는 Adapter
+
+### 1. API 응답 변환
+
+백엔드 API 응답 형식이 프론트엔드가 기대하는 형식과 다를 때.
+
+```typescript
+// 백엔드 응답 (snake_case)
+interface ApiUserResponse {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+}
+
+// 프론트엔드 모델 (camelCase)
+interface User {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  createdAt: Date;
+}
+
+// Adapter
+function toUser(response: ApiUserResponse): User {
+  return {
+    userId: response.user_id,
+    firstName: response.first_name,
+    lastName: response.last_name,
+    createdAt: new Date(response.created_at),
+  };
+}
+```
+
+함수 형태의 Adapter다. 클래스일 필요는 없다.
+
+### 2. 레거시 시스템 통합
+
+```typescript
+// 레거시: XML 기반
+class LegacyUserSystem {
+  getUserXml(id: string): string {
+    return `<user><id>${id}</id><name>Kim</name></user>`;
+  }
+}
+
+// 새 시스템: JSON 기반
+interface UserRepository {
+  getUser(id: string): { id: string; name: string };
+}
+
+// Adapter
+class LegacyUserAdapter implements UserRepository {
+  constructor(private legacy: LegacyUserSystem) {}
+
+  getUser(id: string) {
+    const xml = this.legacy.getUserXml(id);
+    // XML → JSON 변환
+    return this.parseXml(xml);
+  }
+
+  private parseXml(xml: string) {
+    // XML 파싱 로직...
+    return { id: "1", name: "Kim" };
+  }
+}
+```
+
+### 3. 테스트 더블
+
+```typescript
+// 프로덕션: 실제 이메일 전송
+interface EmailService {
+  send(to: string, subject: string, body: string): Promise<void>;
+}
+
+// 테스트: 콘솔에 출력만
+class ConsoleEmailAdapter implements EmailService {
+  async send(to: string, subject: string, body: string) {
+    console.log(`[TEST EMAIL] To: ${to}, Subject: ${subject}`);
+  }
+}
+```
+
+---
+
+## 언제 사용하면 좋을까?
+
+1. **외부 라이브러리를 도입할 때**
+   - SDK의 인터페이스가 우리 시스템과 다를 때
+
+2. **레거시 시스템을 점진적으로 교체할 때**
+   - 한 번에 바꿀 수 없으니 어댑터로 연결해서 공존시키기
+
+3. **API 응답 형식을 변환할 때**
+   - 백엔드 응답 → 프론트엔드 모델
+
+4. **서드파티 서비스를 교체 가능하게 만들 때**
+   - Stripe → Toss Payments로 교체할 때 어댑터만 바꾸면 됨
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| 기존 코드 수정 없이 호환성 확보 | 어댑터 클래스가 추가됨 |
+| SRP — 변환 로직을 분리 | 너무 많이 쓰면 코드 복잡도 증가 |
+| 외부 의존성을 격리 | 때로는 직접 수정하는 게 더 간단할 수 있음 |
+
+---
+
+## 정리하며
+
+Adapter는 **호환되지 않는 것들을 연결해주는 변환기**다.
+
+핵심을 한 줄로 요약하면,
+
+> **"못 꽂히면 돼지코를 끼워라"**
+
+프론트엔드 개발에서 특히 자주 쓰인다. API 응답 변환, SDK 래핑, 레거시 통합 등.
+
+사실 `toUser()` 같은 변환 함수를 만들어본 경험이 있다면, 이미 Adapter 패턴을 쓰고 있었던 것이다.
+
+다음 글에서는 구현과 추상을 분리하는 **Bridge** 패턴을 알아보겠다.
+
+---
+
+# Reference
+
+[Refactoring Guru - Adapter](https://refactoring.guru/design-patterns/adapter)

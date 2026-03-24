@@ -1,0 +1,343 @@
+---
+title: "React Compiler — useMemo와 useCallback의 시대가 저물다"
+description: "React Compiler 1.0이 자동 메모이제이션으로 프론트엔드 최적화의 패러다임을 바꾸고 있다."
+date: "2026-03-24"
+category: "Frontend"
+tags: ["frontend", "react", "optimization", "compiler"]
+thumbnail: "/images/thumbnails/react-compiler.png"
+featured: true
+---
+
+# useMemo, useCallback... 이제 안녕이다
+
+React를 쓰면서 가장 많이 고민했던 것 중 하나가 메모이제이션이었다.
+
+"이 컴포넌트에 `React.memo`를 감싸야 할까?", "이 함수에 `useCallback`을 써야 할까?", "이 계산에 `useMemo`가 필요할까?"
+
+이런 고민을 매번 하면서도, 사실 정확히 어디에 써야 효과적인지 확신이 없는 경우가 많았다.
+
+그런데 2025년 10월, React 팀이 **React Compiler 1.0**을 stable로 릴리즈하면서 이 고민이 완전히 사라졌다.
+
+![excited](https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif)
+
+---
+
+## React Compiler란 무엇인가
+
+React Compiler는 **빌드 타임**에 동작하는 도구다. 런타임이 아니다.
+
+컴파일 단계에서 컴포넌트의 데이터 흐름과 변경 가능성(mutability)을 분석하고, 필요한 곳에 자동으로 메모이제이션을 적용해준다.
+
+쉽게 말하면, 개발자가 직접 `useMemo`, `useCallback`, `React.memo`를 작성하지 않아도 컴파일러가 알아서 최적화된 코드를 생성해주는 것이다.
+
+> React Compiler는 "개발자가 신경 쓰지 않아도 알아서 빠른 React"를 실현한 도구다.
+
+### 동작 원리
+
+컴파일러는 크게 세 단계로 동작한다.
+
+1. **분석(Analysis)**: 컴포넌트의 JSX, hooks, props, state의 데이터 흐름을 정적으로 분석한다.
+2. **의존성 추론**: 어떤 값이 어떤 값에 의존하는지 자동으로 파악한다. 개발자가 의존성 배열을 직접 적을 필요가 없다.
+3. **코드 생성**: 분석 결과를 바탕으로 메모이제이션이 적용된 최적화 코드를 출력한다.
+
+![thinking](https://media.giphy.com/media/d3mlE7uhX8KFgEmY/giphy.gif)
+
+---
+
+## 이전에 우리가 겪던 고통
+
+이전 글 [렌더링 방식 고찰 (CSR, SSR, SSG, ISR)](/posts/Frontend/about-nextjs-rendering)에서 렌더링 최적화에 대해 다뤘었는데, 그때도 느꼈지만 React의 리렌더링 문제는 정말 골치 아팠다.
+
+### 수동 메모이제이션의 문제점
+
+기존 방식에서는 개발자가 직접 판단해서 메모이제이션을 적용해야 했다.
+
+```tsx
+// Before: 개발자가 직접 메모이제이션을 관리하던 시절
+import { useMemo, useCallback, memo } from "react";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+}
+
+interface ProductListProps {
+  products: Product[];
+  selectedCategory: string;
+  onProductClick: (id: string) => void;
+}
+
+const ProductCard = memo(({ product, onClick }: {
+  product: Product;
+  onClick: (id: string) => void;
+}) => {
+  return (
+    <div onClick={() => onClick(product.id)}>
+      <h3>{product.name}</h3>
+      <p>{product.price.toLocaleString()}원</p>
+    </div>
+  );
+});
+
+function ProductList({ products, selectedCategory, onProductClick }: ProductListProps) {
+  // useMemo로 필터링 결과 캐싱
+  const filteredProducts = useMemo(
+    () => products.filter((p) => p.category === selectedCategory),
+    [products, selectedCategory]
+  );
+
+  // useCallback으로 함수 참조 안정화
+  const handleClick = useCallback(
+    (id: string) => {
+      onProductClick(id);
+    },
+    [onProductClick]
+  );
+
+  // useMemo로 통계 계산 캐싱
+  const totalPrice = useMemo(
+    () => filteredProducts.reduce((sum, p) => sum + p.price, 0),
+    [filteredProducts]
+  );
+
+  return (
+    <div>
+      <p>총 금액: {totalPrice.toLocaleString()}원</p>
+      {filteredProducts.map((product) => (
+        <ProductCard key={product.id} product={product} onClick={handleClick} />
+      ))}
+    </div>
+  );
+}
+```
+
+이 코드를 보면 알겠지만, **비즈니스 로직보다 메모이제이션 코드가 더 많다.**
+
+의존성 배열을 하나라도 잘못 적으면 버그가 발생하고, 빼먹으면 최적화가 안 되고, 불필요한 곳에 적으면 오히려 성능이 나빠진다.
+
+![frustrated](https://media.giphy.com/media/l1J9u3TZfpmeDLkD6/giphy.gif)
+
+### React Compiler 적용 후
+
+같은 컴포넌트를 React Compiler 환경에서 작성하면 이렇게 된다.
+
+```tsx
+// After: React Compiler가 알아서 최적화해주는 세상
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+}
+
+interface ProductListProps {
+  products: Product[];
+  selectedCategory: string;
+  onProductClick: (id: string) => void;
+}
+
+// memo 불필요
+function ProductCard({ product, onClick }: {
+  product: Product;
+  onClick: (id: string) => void;
+}) {
+  return (
+    <div onClick={() => onClick(product.id)}>
+      <h3>{product.name}</h3>
+      <p>{product.price.toLocaleString()}원</p>
+    </div>
+  );
+}
+
+function ProductList({ products, selectedCategory, onProductClick }: ProductListProps) {
+  // useMemo 불필요 — 컴파일러가 자동으로 캐싱
+  const filteredProducts = products.filter((p) => p.category === selectedCategory);
+
+  // useCallback 불필요 — 컴파일러가 함수 참조를 안정화
+  const handleClick = (id: string) => {
+    onProductClick(id);
+  };
+
+  // useMemo 불필요 — 컴파일러가 자동으로 캐싱
+  const totalPrice = filteredProducts.reduce((sum, p) => sum + p.price, 0);
+
+  return (
+    <div>
+      <p>총 금액: {totalPrice.toLocaleString()}원</p>
+      {filteredProducts.map((product) => (
+        <ProductCard key={product.id} product={product} onClick={handleClick} />
+      ))}
+    </div>
+  );
+}
+```
+
+코드가 훨씬 깔끔해졌다. **비즈니스 로직에만 집중할 수 있다.**
+
+![clean](https://media.giphy.com/media/3o7TKnO6Wve6502iJ2/giphy.gif)
+
+---
+
+## 실제 성능 수치
+
+React Compiler의 성능 개선 효과는 이미 여러 프로덕션 환경에서 검증되었다.
+
+| 지표 | 프로젝트 | 개선 수치 |
+|------|----------|-----------|
+| 렌더링 시간 | Sanity Studio | **20~30% 감소** |
+| 페이지 로드 | Meta 내부 프로젝트 | **최대 12% 단축** |
+| 인터랙션 속도 | Meta 내부 프로젝트 | **최대 2.5배 향상** |
+| 번들 사이즈 | 일반 프로젝트 | memo 관련 코드 제거로 감소 |
+
+특히 Sanity Studio 사례가 인상적인데, 수동 메모이제이션을 전부 제거하고 컴파일러에 맡겼더니 오히려 성능이 더 좋아진 것이다.
+
+> 사람이 직접 최적화하는 것보다 컴파일러가 더 잘한다는 게 증명된 셈이다.
+
+---
+
+## 스벨트에서 봤던 그 미래
+
+FEConf에서 스벨트 발표를 봤을 때 가장 인상 깊었던 부분이 있다.
+
+**"스벨트에서는 의존성 배열이 필요 없다."**
+
+스벨트는 컴파일러 기반 프레임워크라서 반응성을 자동으로 추적한다. 개발자가 `$:` 문법만 쓰면 알아서 의존성을 파악하고 필요할 때만 업데이트한다.
+
+당시에는 "역시 컴파일러 기반이라 가능한 거구나, React는 런타임이니까 어쩔 수 없지"라고 생각했다.
+
+**그런데 이제 React도 마찬가지다.**
+
+React Compiler가 빌드 타임에 의존성을 분석하고 자동으로 메모이제이션을 적용하면서, 스벨트가 보여줬던 그 개발자 경험을 React에서도 누릴 수 있게 되었다.
+
+![mind blown](https://media.giphy.com/media/xT0xeJpnrWC3nWcJxm/giphy.gif)
+
+---
+
+## 프로젝트에 적용하기
+
+React Compiler는 이미 주요 프레임워크와 통합되어 있다.
+
+### Next.js
+
+```ts
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    reactCompiler: true,
+  },
+};
+
+export default nextConfig;
+```
+
+단 한 줄이면 된다.
+
+### Vite
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+const ReactCompilerConfig = { /* 옵션 */ };
+
+export default defineConfig({
+  plugins: [
+    react({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", ReactCompilerConfig]],
+      },
+    }),
+  ],
+});
+```
+
+### Expo SDK 54
+
+React Native 진영에서도 Expo SDK 54부터 React Compiler가 기본 통합되었다. 모바일에서도 동일한 최적화 혜택을 받을 수 있다.
+
+![setup](https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif)
+
+---
+
+## 주의할 점 — Rules of React
+
+React Compiler가 마법처럼 동작하지만, 전제 조건이 있다. **Rules of React를 지켜야 한다.**
+
+### 컴파일러가 제대로 동작하지 않는 경우
+
+```tsx
+// Bad: 컴포넌트 내에서 직접 변이(mutation)
+function BadComponent({ items }: { items: string[] }) {
+  // 이렇게 하면 컴파일러가 최적화할 수 없다
+  items.push("new item"); // props를 직접 수정!
+
+  return <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>;
+}
+
+// Good: 불변성을 유지
+function GoodComponent({ items }: { items: string[] }) {
+  const allItems = [...items, "new item"];
+
+  return <ul>{allItems.map((item) => <li key={item}>{item}</li>)}</ul>;
+}
+```
+
+### 핵심 규칙 정리
+
+1. **컴포넌트와 hooks는 순수해야 한다** — 같은 입력에 같은 출력을 반환해야 한다.
+2. **Props와 state를 직접 변이하지 말 것** — 항상 새로운 객체/배열을 만들어야 한다.
+3. **hooks의 반환값을 변이하지 말 것** — `useState`의 state를 직접 수정하면 안 된다.
+4. **JSX에 전달한 값을 변이하지 말 것** — 렌더링 이후에도 값이 변하지 않아야 한다.
+
+> 사실 이 규칙들은 React Compiler와 무관하게 원래 지켜야 하는 것들이다. 컴파일러가 이 규칙을 더 엄격하게 요구할 뿐이다.
+
+### `"use no memo"` 디렉티브
+
+특정 컴포넌트에서 컴파일러의 자동 메모이제이션을 비활성화하고 싶다면 `"use no memo"` 디렉티브를 사용할 수 있다.
+
+```tsx
+function LegacyComponent() {
+  "use no memo"; // 이 컴포넌트는 컴파일러가 건드리지 않음
+
+  // 기존 방식대로 동작
+  return <div>...</div>;
+}
+```
+
+마이그레이션 과정에서 점진적으로 적용할 때 유용하다.
+
+![careful](https://media.giphy.com/media/H7kfFDvD9HSYGRbvid/giphy.gif)
+
+---
+
+## 개인적인 소감
+
+이전에 React의 메모이제이션 훅들이 왜 필요한지, 어떻게 활용해야 하는지 정리한 적이 있었다. 렌더링 최적화에 대해 고민하면서 `useMemo`와 `useCallback`의 동작 원리를 깊이 파고들었던 기억이 난다.
+
+그런데 이제 그 지식이 "역사"가 되어가고 있다.
+
+물론 내부 동작 원리를 이해하는 것은 여전히 중요하다. 컴파일러가 어떤 기준으로 최적화하는지, Rules of React가 왜 중요한지 알려면 메모이제이션의 본질을 알아야 한다.
+
+하지만 실무에서 매번 `useMemo`를 써야 할지 고민하고, 의존성 배열을 관리하고, `React.memo`를 감싸는 그 반복적인 작업은 이제 끝이다.
+
+프론트엔드 개발에서 "최적화"의 의미가 바뀌고 있다. 이전에는 "어디에 메모이제이션을 적용할까"가 최적화였다면, 이제는 "Rules of React를 잘 지키면서 깔끔한 코드를 작성하는 것"이 최적화다.
+
+**좋은 코드가 곧 빠른 코드가 되는 시대.**
+
+개발자로서 이보다 좋은 소식이 있을까.
+
+![happy](https://media.giphy.com/media/XreQmk7ETCak0/giphy.gif)
+
+---
+
+## 참고 자료
+
+- [React Compiler - React 공식 문서](https://react.dev/learn/react-compiler)
+- [React Compiler 1.0 릴리즈 블로그](https://react.dev/blog/2025/10/21/react-compiler-stable)
+- [Sanity Studio - React Compiler 적용 사례](https://www.sanity.io/blog/react-compiler-sanity-studio)
+- [Expo SDK 54 - React Compiler 통합](https://expo.dev/changelog/sdk-54)

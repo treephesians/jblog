@@ -1,0 +1,605 @@
+---
+title: "State 패턴"
+description: "객체의 내부 상태에 따라 행동이 바뀌는 State 패턴을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "behavioral", "architecture"]
+thumbnail: "/images/thumbnails/state.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 19
+---
+
+# 자판기 앞에서 벌어지는 일
+
+자판기 앞에 서면 이런 흐름을 거친다.
+
+1. **대기 중**: 화면에 "동전을 넣어주세요" 표시
+2. **돈 투입됨**: "음료를 선택하세요" 표시, 버튼이 활성화됨
+3. **음료 배출 중**: "잠시만 기다려주세요..." 모터가 돌아간다
+4. **품절**: "죄송합니다 — 매진되었습니다"
+
+같은 자판기인데, **상태에 따라 완전히 다른 행동**을 한다. 동전을 넣었을 때의 반응이 대기 중일 때와 이미 돈이 들어간 상태일 때 전혀 다르다.
+
+![자판기](https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif)
+
+코드에서도 이런 상황이 끊임없이 생긴다. 그리고 대부분 이렇게 처리한다 — `if (state === "idle")`, `else if (state === "hasMoney")`, `else if`...
+
+---
+
+## State 패턴이란?
+
+> 객체의 **내부 상태가 변경될 때 행동도 함께 바뀌도록** 하는 패턴. 마치 객체의 클래스가 바뀐 것처럼 보인다.
+
+핵심 아이디어는 간단하다.
+
+1. 상태마다 **별도의 클래스**를 만든다
+2. 상태별 행동을 해당 클래스 안에 **캡슐화**한다
+3. 상태 전환은 상태 객체 자체가 담당한다
+
+![변신](https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif)
+
+---
+
+## Before: 지옥의 if-else
+
+상태가 추가될 때마다 모든 메서드에 분기문이 늘어나는 코드를 보자.
+
+```typescript
+class Order {
+  private state: "pending" | "paid" | "shipping" | "delivered" | "cancelled" =
+    "pending";
+
+  pay() {
+    if (this.state === "pending") {
+      console.log("결제 완료!");
+      this.state = "paid";
+    } else if (this.state === "paid") {
+      console.log("이미 결제된 주문입니다.");
+    } else if (this.state === "shipping") {
+      console.log("이미 배송 중인 주문입니다.");
+    } else if (this.state === "delivered") {
+      console.log("이미 완료된 주문입니다.");
+    } else if (this.state === "cancelled") {
+      console.log("취소된 주문은 결제할 수 없습니다.");
+    }
+  }
+
+  ship() {
+    if (this.state === "pending") {
+      console.log("결제가 필요합니다.");
+    } else if (this.state === "paid") {
+      console.log("배송 시작!");
+      this.state = "shipping";
+    } else if (this.state === "shipping") {
+      console.log("이미 배송 중입니다.");
+    } else if (this.state === "delivered") {
+      console.log("이미 배송 완료된 주문입니다.");
+    } else if (this.state === "cancelled") {
+      console.log("취소된 주문은 배송할 수 없습니다.");
+    }
+  }
+
+  cancel() {
+    if (this.state === "pending") {
+      console.log("주문 취소!");
+      this.state = "cancelled";
+    } else if (this.state === "paid") {
+      console.log("결제 취소 후 주문 취소!");
+      this.state = "cancelled";
+    } else if (this.state === "shipping") {
+      console.log("배송 중에는 취소할 수 없습니다.");
+    } else if (this.state === "delivered") {
+      console.log("배송 완료 후에는 취소할 수 없습니다.");
+    } else if (this.state === "cancelled") {
+      console.log("이미 취소된 주문입니다.");
+    }
+  }
+
+  // 상태 하나 추가되면? 모든 메서드에 else if 추가...
+}
+```
+
+상태가 5개, 메서드가 3개만 돼도 **15개의 분기문**이다. 상태가 하나 늘면? 모든 메서드를 찾아다니며 수정해야 한다. 실수하기 딱 좋은 구조다.
+
+---
+
+## After: State 패턴 적용
+
+각 상태를 별도의 클래스로 분리해보자.
+
+```typescript
+// State 인터페이스
+interface OrderState {
+  pay(order: Order): void;
+  ship(order: Order): void;
+  deliver(order: Order): void;
+  cancel(order: Order): void;
+  toString(): string;
+}
+
+// Context — 상태를 위임하는 주체
+class Order {
+  private state: OrderState;
+  readonly id: string;
+
+  constructor(id: string) {
+    this.id = id;
+    this.state = new PendingState(); // 초기 상태
+  }
+
+  setState(state: OrderState) {
+    console.log(`[주문 ${this.id}] ${this.state} → ${state}`);
+    this.state = state;
+  }
+
+  getState(): OrderState {
+    return this.state;
+  }
+
+  // 모든 행동을 현재 상태에 위임
+  pay() {
+    this.state.pay(this);
+  }
+  ship() {
+    this.state.ship(this);
+  }
+  deliver() {
+    this.state.deliver(this);
+  }
+  cancel() {
+    this.state.cancel(this);
+  }
+}
+```
+
+### 상태 클래스들
+
+```typescript
+// 1. 주문 대기 상태
+class PendingState implements OrderState {
+  pay(order: Order) {
+    console.log("결제 완료!");
+    order.setState(new PaidState());
+  }
+
+  ship(order: Order) {
+    console.log("결제가 먼저 필요합니다.");
+  }
+
+  deliver(order: Order) {
+    console.log("아직 결제도 안 됐습니다.");
+  }
+
+  cancel(order: Order) {
+    console.log("주문이 취소되었습니다.");
+    order.setState(new CancelledState());
+  }
+
+  toString() {
+    return "대기 중";
+  }
+}
+
+// 2. 결제 완료 상태
+class PaidState implements OrderState {
+  pay(order: Order) {
+    console.log("이미 결제된 주문입니다.");
+  }
+
+  ship(order: Order) {
+    console.log("배송을 시작합니다!");
+    order.setState(new ShippingState());
+  }
+
+  deliver(order: Order) {
+    console.log("아직 배송이 시작되지 않았습니다.");
+  }
+
+  cancel(order: Order) {
+    console.log("결제를 취소하고 주문을 취소합니다.");
+    order.setState(new CancelledState());
+  }
+
+  toString() {
+    return "결제 완료";
+  }
+}
+
+// 3. 배송 중 상태
+class ShippingState implements OrderState {
+  pay(order: Order) {
+    console.log("이미 결제된 주문입니다.");
+  }
+
+  ship(order: Order) {
+    console.log("이미 배송 중입니다.");
+  }
+
+  deliver(order: Order) {
+    console.log("배송이 완료되었습니다!");
+    order.setState(new DeliveredState());
+  }
+
+  cancel(order: Order) {
+    console.log("배송 중에는 취소할 수 없습니다.");
+  }
+
+  toString() {
+    return "배송 중";
+  }
+}
+
+// 4. 배송 완료 상태
+class DeliveredState implements OrderState {
+  pay(order: Order) {
+    console.log("이미 완료된 주문입니다.");
+  }
+
+  ship(order: Order) {
+    console.log("이미 배송이 완료되었습니다.");
+  }
+
+  deliver(order: Order) {
+    console.log("이미 배송 완료된 주문입니다.");
+  }
+
+  cancel(order: Order) {
+    console.log("배송 완료 후에는 취소할 수 없습니다.");
+  }
+
+  toString() {
+    return "배송 완료";
+  }
+}
+
+// 5. 취소 상태
+class CancelledState implements OrderState {
+  pay(order: Order) {
+    console.log("취소된 주문입니다. 새 주문을 만들어주세요.");
+  }
+
+  ship(order: Order) {
+    console.log("취소된 주문은 배송할 수 없습니다.");
+  }
+
+  deliver(order: Order) {
+    console.log("취소된 주문입니다.");
+  }
+
+  cancel(order: Order) {
+    console.log("이미 취소된 주문입니다.");
+  }
+
+  toString() {
+    return "취소됨";
+  }
+}
+```
+
+### 실행해보기
+
+```typescript
+const order = new Order("ORD-001");
+
+order.pay();
+// 결제 완료!
+// [주문 ORD-001] 대기 중 → 결제 완료
+
+order.ship();
+// 배송을 시작합니다!
+// [주문 ORD-001] 결제 완료 → 배송 중
+
+order.cancel();
+// 배송 중에는 취소할 수 없습니다.
+
+order.deliver();
+// 배송이 완료되었습니다!
+// [주문 ORD-001] 배송 중 → 배송 완료
+```
+
+새 상태를 추가하고 싶으면? **새 클래스 하나만 만들면 된다.** 기존 코드를 건드릴 필요가 없다.
+
+![깔끔](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
+
+---
+
+## 실전에서 만나는 State 패턴
+
+### 1. TCP 커넥션 상태
+
+네트워크 프로그래밍의 교과서적 예시다. TCP 연결은 `CLOSED → LISTEN → SYN_SENT → ESTABLISHED → FIN_WAIT → CLOSED` 같은 복잡한 상태 전이를 가진다.
+
+```typescript
+interface TCPState {
+  open(conn: TCPConnection): void;
+  close(conn: TCPConnection): void;
+  send(conn: TCPConnection, data: string): void;
+}
+
+class TCPConnection {
+  private state: TCPState = new ClosedState();
+
+  setState(state: TCPState) {
+    this.state = state;
+  }
+
+  open() {
+    this.state.open(this);
+  }
+  close() {
+    this.state.close(this);
+  }
+  send(data: string) {
+    this.state.send(this, data);
+  }
+}
+
+class ClosedState implements TCPState {
+  open(conn: TCPConnection) {
+    console.log("연결을 수립합니다...");
+    conn.setState(new EstablishedState());
+  }
+  close(conn: TCPConnection) {
+    console.log("이미 닫혀있습니다.");
+  }
+  send(conn: TCPConnection, data: string) {
+    console.log("연결이 없어 전송할 수 없습니다.");
+  }
+}
+
+class EstablishedState implements TCPState {
+  open(conn: TCPConnection) {
+    console.log("이미 연결되어 있습니다.");
+  }
+  close(conn: TCPConnection) {
+    console.log("연결을 종료합니다...");
+    conn.setState(new ClosedState());
+  }
+  send(conn: TCPConnection, data: string) {
+    console.log(`데이터 전송: ${data}`);
+  }
+}
+```
+
+### 2. UI 컴포넌트 상태 (Loading / Error / Success)
+
+프론트엔드 개발자라면 매일 마주하는 패턴이다. 사실 React의 상태 관리도 State 패턴의 변형이라고 볼 수 있다.
+
+```typescript
+interface FetchState<T> {
+  render(): string;
+  retry(component: DataFetcher<T>): void;
+}
+
+class DataFetcher<T> {
+  private state: FetchState<T>;
+
+  constructor(private url: string) {
+    this.state = new IdleState();
+  }
+
+  setState(state: FetchState<T>) {
+    this.state = state;
+  }
+
+  render() {
+    return this.state.render();
+  }
+
+  retry() {
+    this.state.retry(this);
+  }
+
+  async fetch() {
+    this.setState(new LoadingState());
+    try {
+      const res = await fetch(this.url);
+      const data = await res.json();
+      this.setState(new SuccessState(data));
+    } catch (err) {
+      this.setState(new ErrorState(err as Error));
+    }
+  }
+}
+
+class IdleState<T> implements FetchState<T> {
+  render() {
+    return "데이터를 불러오려면 버튼을 클릭하세요.";
+  }
+  retry(component: DataFetcher<T>) {
+    component.fetch();
+  }
+}
+
+class LoadingState<T> implements FetchState<T> {
+  render() {
+    return "<Spinner /> 로딩 중...";
+  }
+  retry() {
+    console.log("이미 로딩 중입니다.");
+  }
+}
+
+class SuccessState<T> implements FetchState<T> {
+  constructor(private data: T) {}
+  render() {
+    return `데이터: ${JSON.stringify(this.data)}`;
+  }
+  retry(component: DataFetcher<T>) {
+    component.fetch(); // 새로고침
+  }
+}
+
+class ErrorState<T> implements FetchState<T> {
+  constructor(private error: Error) {}
+  render() {
+    return `오류 발생: ${this.error.message}`;
+  }
+  retry(component: DataFetcher<T>) {
+    component.fetch(); // 재시도
+  }
+}
+```
+
+### 3. 게임 캐릭터 상태
+
+게임 개발에서 State 패턴은 거의 필수다. 캐릭터가 서 있을 때, 달릴 때, 점프할 때, 공격할 때 — 각각 입력에 대한 반응이 완전히 다르다.
+
+```typescript
+interface CharacterState {
+  handleInput(character: GameCharacter, input: string): void;
+  update(character: GameCharacter): void;
+}
+
+class GameCharacter {
+  private state: CharacterState = new StandingState();
+  x = 0;
+  y = 0;
+
+  setState(state: CharacterState) {
+    this.state = state;
+  }
+
+  handleInput(input: string) {
+    this.state.handleInput(this, input);
+  }
+
+  update() {
+    this.state.update(this);
+  }
+}
+
+class StandingState implements CharacterState {
+  handleInput(character: GameCharacter, input: string) {
+    if (input === "SPACE") {
+      console.log("점프!");
+      character.setState(new JumpingState());
+    } else if (input === "RIGHT" || input === "LEFT") {
+      console.log("달리기 시작!");
+      character.setState(new RunningState(input));
+    } else if (input === "ATTACK") {
+      console.log("공격!");
+      character.setState(new AttackingState());
+    }
+  }
+
+  update(character: GameCharacter) {
+    // 서 있으면 아무것도 안 함
+  }
+}
+
+class JumpingState implements CharacterState {
+  handleInput(character: GameCharacter, input: string) {
+    // 점프 중에는 다른 입력 무시 (더블 점프 없음)
+    console.log("공중에서는 조작할 수 없습니다.");
+  }
+
+  update(character: GameCharacter) {
+    character.y += 10;
+    if (character.y >= 100) {
+      // 최고점 도달 → 착지
+      character.y = 0;
+      console.log("착지!");
+      character.setState(new StandingState());
+    }
+  }
+}
+
+class RunningState implements CharacterState {
+  constructor(private direction: string) {}
+
+  handleInput(character: GameCharacter, input: string) {
+    if (input === "SPACE") {
+      console.log("달리면서 점프!");
+      character.setState(new JumpingState());
+    } else if (input === "STOP") {
+      console.log("멈춤!");
+      character.setState(new StandingState());
+    }
+  }
+
+  update(character: GameCharacter) {
+    character.x += this.direction === "RIGHT" ? 5 : -5;
+  }
+}
+
+class AttackingState implements CharacterState {
+  private frames = 0;
+
+  handleInput(character: GameCharacter, input: string) {
+    console.log("공격 모션 중에는 다른 행동을 할 수 없습니다.");
+  }
+
+  update(character: GameCharacter) {
+    this.frames++;
+    if (this.frames >= 30) {
+      // 공격 애니메이션 종료
+      console.log("공격 완료!");
+      character.setState(new StandingState());
+    }
+  }
+}
+```
+
+---
+
+## State vs Strategy — 뭐가 다른 거야?
+
+이 두 패턴은 구조가 거의 동일해서 자주 혼동된다. 핵심 차이는 **의도**에 있다.
+
+| | State | Strategy |
+|---|---|---|
+| **목적** | 상태에 따라 행동이 자동으로 바뀜 | 알고리즘을 외부에서 선택 |
+| **전환 주체** | 상태 객체 스스로 다음 상태로 전환 | 클라이언트가 전략을 교체 |
+| **상태 인식** | 상태 객체가 Context를 알고, 전환을 트리거 | 전략 객체는 다른 전략의 존재를 모름 |
+| **비유** | 자판기 — 동전 넣으면 자동으로 상태 변경 | 네비게이션 — 사용자가 경로 알고리즘 선택 |
+
+쉽게 말하면, **State는 "알아서 바뀌는 것"**이고 **Strategy는 "골라서 쓰는 것"**이다.
+
+---
+
+## 언제 사용하면 좋을까?
+
+1. **객체가 상태에 따라 다르게 동작하고, 상태가 런타임에 자주 바뀔 때**
+   - 주문 상태, 커넥션 상태, 게임 캐릭터
+
+2. **조건문(if-else/switch)이 상태별로 반복되고 있을 때**
+   - 같은 상태 체크가 여러 메서드에 걸쳐 나타난다면 State 패턴 신호
+
+3. **상태 전이 로직이 복잡할 때**
+   - 상태 다이어그램을 그릴 수 있는 수준이라면 State 패턴이 적합하다
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| SRP — 각 상태의 행동이 한 클래스에 응집 | 상태가 적으면 오버 엔지니어링이 될 수 있음 |
+| OCP — 새 상태 추가 시 기존 코드 수정 불필요 | 클래스 수가 늘어남 |
+| 상태 전이가 명확하고 예측 가능 | 상태 간 의존 관계가 생길 수 있음 |
+| 거대한 조건문 제거 | 단순한 상태 전이에는 enum + switch가 나을 수 있음 |
+
+---
+
+## 정리하며
+
+State 패턴은 **객체의 상태에 따라 행동을 바꾸는** 패턴이다.
+
+핵심을 한 줄로 요약하면,
+
+> **"상태가 바뀌면 행동도 바뀐다 — 그 행동을 상태 객체에게 맡겨라"**
+
+`if (state === "...")` 분기문이 여러 메서드에 걸쳐 반복되고 있다면, 그건 State 패턴이 필요하다는 강력한 신호다. 각 상태를 클래스로 분리하면 코드가 훨씬 깔끔해지고, 새 상태를 추가하는 것도 자신감 있게 할 수 있다.
+
+개인적으로는 프론트엔드에서 복잡한 UI 상태 관리를 할 때 이 패턴의 사고방식이 가장 많이 도움이 됐다. "이 컴포넌트가 지금 어떤 상태인가?"를 먼저 정의하고, 각 상태에서의 행동을 분리해서 생각하면 복잡한 로직도 정리가 된다.
+
+![정리 완료](https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif)
+
+---
+
+# Reference
+
+[Refactoring Guru - State](https://refactoring.guru/design-patterns/state)

@@ -1,0 +1,311 @@
+---
+title: "2025년 프론트엔드를 정의한 10가지 사건"
+description: "LogRocket의 Frontend Wrapped 2025를 리뷰하며, 지난 한 해 프론트엔드 세계에서 무슨 일이 있었는지 정리합니다."
+date: "2026-03-24"
+category: "Insight"
+tags: ["insight", "frontend", "trend"]
+thumbnail: "/images/thumbnails/frontend-wrapped-2025.png"
+featured: true
+---
+
+# 2025년, 프론트엔드는 롤러코스터였다
+
+매년 12월이 되면 Spotify Wrapped가 나오듯이, LogRocket에서도 **Frontend Wrapped 2025**를 발행했다.
+
+2025년 프론트엔드를 정의한 10가지 사건을 **생긴 화제성 × 실질적 영향력** 기준으로 순위를 매긴 글인데,
+
+읽으면서 "아 맞다 이거 있었지..."부터 "이런 일도 있었어?"까지 다양한 반응이 나왔다.
+
+![롤러코스터](https://media.giphy.com/media/l0IylOPCNkiqOgMyA/giphy.gif)
+
+한 해를 되돌아보는 것은 개발자에게도 중요한 것 같다.
+
+내가 쓰는 기술들이 어디로 가고 있는지, 어떤 흐름 위에 서있는지 아는 것만으로도 다음 방향을 잡는 데 도움이 되니까.
+
+그래서 10가지 사건을 하나씩 살펴보면서 내 생각도 함께 적어보려 한다.
+
+---
+
+## 10위: TypeScript의 지배 — 이제 논쟁은 끝났다
+
+사실 2025년에 TypeScript에 대해 특별히 새로운 건 없었다.
+
+근데 그게 핵심이다. **너무 당연해져서 뉴스거리가 안 된다는 것 자체가** TypeScript의 승리다.
+
+새 프로젝트를 시작하면서 "JavaScript로 할까 TypeScript로 할까?" 고민하는 사람은 이제 거의 없다.
+
+나도 이 블로그 프로젝트(Next.js)를 포함해서, 2025년에 시작한 모든 프로젝트가 TypeScript다.
+
+2025년에 주목할 만한 변화가 있었다면, Node.js가 TypeScript를 **네이티브로 지원**하기 시작했다는 것이다. `ts-node`나 `tsx` 같은 도구 없이도 `.ts` 파일을 직접 실행할 수 있게 되었다.
+
+---
+
+## 9위: Tailwind CSS의 확고한 위치
+
+Tailwind CSS v4가 출시되었고, 성능이 크게 향상되었다.
+
+나는 이전에 "tailwind도 CSS-in-JS인가요?" 글에서 CSS-in-JS 라이브러리들을 비교했었는데,
+
+2025년에 확실히 느낀 건 **Tailwind가 CSS 솔루션의 디폴트가 되었다는 것**이다.
+
+styled-components나 Emotion 같은 runtime CSS-in-JS는 점점 줄어들고, Tailwind + CSS Modules 조합이 대세가 된 느낌이다.
+
+Tailwind v4의 가장 큰 변화는 **설정 파일이 사라진 것**이다. `tailwind.config.js` 대신 CSS 파일에서 직접 설정한다.
+
+```css
+/* tailwind.config.js 없이, CSS에서 직접 */
+@theme {
+  --color-primary: #3b82f6;
+  --font-display: "Inter", sans-serif;
+}
+```
+
+CSS-in-JS의 시대가 저물고, **CSS-in-CSS의 시대**가 다시 오고 있는 것 같다는 생각이 들었다.
+
+---
+
+## 8위: SSR은 이제 어디서나
+
+SSR(Server-Side Rendering)이 특별한 기술이 아니라 **기본값**이 되었다.
+
+Next.js는 물론이고, Remix, Nuxt, SvelteKit, Astro까지 모든 메타 프레임워크가 SSR 우선이다.
+
+이전에 "렌더링 방식 고찰" 글에서 CSR, SSR, SSG, ISR을 비교했었는데,
+
+2025년의 결론은 **"SSR이 디폴트, 필요하면 CSR로 내린다"** 가 된 것 같다.
+
+CSR → SSR이 아니라, SSR → 필요한 부분만 CSR로 가는 흐름.
+
+이 변화의 중심에는 React Server Components가 있고, 이건 별도의 글에서 자세히 다룰 예정이다.
+
+---
+
+## 7위: Shai Halud npm 공격 — 공급망의 취약함
+
+이건 좀 무서운 이야기다.
+
+2025년 7월, **"Shai Halud"**라는 이름의 공격자가 인기 npm 패키지들의 악성 포크를 대량으로 배포했다.
+
+패키지 이름을 살짝 바꿔서 (`lodash` → `lodash-utils` 같은 식으로) 개발자들이 실수로 설치하게 만드는 **타이포스쿼팅(typosquatting)** 공격이었다.
+
+![무서운 이야기](https://media.giphy.com/media/32mC2kXYWCsg0/giphy.gif)
+
+이 사건으로 많은 기업들이 **lockfile 검증**, **패키지 서명**, **private registry** 도입을 진지하게 검토하게 되었다.
+
+나도 이 사건 이후로 새 패키지를 설치할 때 `npm info`로 한 번 더 확인하는 습관이 생겼다.
+
+오픈소스 생태계의 편리함 뒤에는 항상 이런 위험이 숨어있다는 것을 다시 한번 느꼈다.
+
+이전에 작성한 "OpenCode 보안 분석" 글에서도 느꼈지만, 보안은 정말 나중에 생각할 문제가 아니다.
+
+---
+
+## 6위: CSS가 JavaScript를 또 죽였다
+
+2025년에 CSS에 추가된 기능들이 정말 대단하다.
+
+- **Anchor Positioning**: JavaScript 없이 툴팁, 드롭다운의 위치를 CSS만으로 제어
+- **Scroll-Driven Animations**: IntersectionObserver 없이 스크롤 기반 애니메이션
+- **Container Queries**: 부모 요소의 크기에 따른 반응형 (미디어 쿼리가 아닌!)
+
+```css
+/* JavaScript 없이 스크롤 기반 애니메이션 */
+.hero-image {
+  animation: fadeIn linear;
+  animation-timeline: scroll();
+  animation-range: 0 300px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(50px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+```
+
+예전에는 이런 걸 하려면 `IntersectionObserver`를 쓰거나 `framer-motion` 같은 라이브러리가 필요했는데,
+
+이제 **CSS 몇 줄이면** 된다.
+
+솔직히 "CSS가 JavaScript를 죽인다"는 말이 매년 나오긴 하는데, 2025년에는 진짜로 죽인 느낌이다.
+
+Container Queries는 특히 컴포넌트 기반 개발과 찰떡궁합이다. "화면 크기"가 아닌 "컴포넌트 크기"에 반응하니까, 재사용 가능한 컴포넌트를 만들기가 훨씬 쉬워졌다.
+
+![CSS 파워](https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif)
+
+---
+
+## 5위: Rust 르네상스 — 빌드 도구의 혁명
+
+2025년 프론트엔드 빌드 도구의 키워드는 하나다. **Rust.**
+
+| 도구 | 역할 | 성능 향상 |
+|------|------|-----------|
+| **Rspack** | Webpack 대체 | 23배 빠른 빌드 |
+| **Turbopack** | Next.js 기본 번들러 | 700배 빠른 HMR |
+| **SWC** | Babel 대체 (트랜스파일러) | 20배 빠른 컴파일 |
+| **Biome** | ESLint + Prettier 대체 | 25배 빠른 린팅 |
+
+Microsoft, Amazon, Discord, TikTok 등이 프로덕션에서 이 도구들을 도입했다.
+
+"JavaScript로 JavaScript를 빌드하기엔 JavaScript가 너무 느리다"는 깨달음이 드디어 현실이 된 것이다.
+
+나도 이 블로그 프로젝트에서 Turbopack을 쓰고 있는데, HMR 속도가 체감될 정도로 빠르다.
+
+코드를 수정하면 거의 즉시 반영된다. Webpack 시절에 "저장 → 1~2초 대기 → 반영"이었던 걸 생각하면 격세지감이다.
+
+---
+
+## 4위: TanStack 생태계의 부상
+
+TanStack Query (구 React Query), TanStack Router, TanStack Table...
+
+**TanStack**이 프론트엔드 생태계의 핵심 인프라로 자리 잡았다.
+
+특히 TanStack Router는 Next.js의 App Router에 대한 **대안**으로 떠올랐다. Next.js에 종속되지 않으면서도 타입 안전한 라우팅을 제공한다.
+
+TanStack Query의 Suspense 지원도 안정화되면서, 데이터 페칭 패턴이 한층 깔끔해졌다.
+
+```typescript
+// TanStack Query + Suspense
+function UserProfile({ userId }: { userId: string }) {
+  const { data: user } = useSuspenseQuery({
+    queryKey: ["user", userId],
+    queryFn: () => fetchUser(userId),
+  });
+
+  // 🎉 data가 항상 존재함이 보장 (undefined 체크 불필요)
+  return <h1>{user.name}</h1>;
+}
+```
+
+나도 프로젝트에서 TanStack Query를 쓰고 있는데, `useSuspenseQuery`가 나온 이후로 `isLoading` 체크가 사라져서 코드가 훨씬 깔끔해졌다.
+
+---
+
+## 3위: React 19.2 — Async가 모든 곳에
+
+React 19.2는 비동기 처리를 프레임워크 레벨에서 **기본 지원**하기 시작했다.
+
+- `use()` 훅으로 Promise를 직접 소비
+- Next.js가 네비게이션을 기본으로 Transition으로 감싸기
+- Server Actions의 안정화
+
+```typescript
+// use() 훅 — Promise를 직접 읽을 수 있다
+function UserName({ userPromise }: { userPromise: Promise<User> }) {
+  const user = use(userPromise);
+  return <span>{user.name}</span>;
+}
+```
+
+React 팀은 점점 **"서버 우선"** 방향으로 가고 있다는 느낌이 강하다.
+
+`useEffect`로 클라이언트에서 데이터를 가져오는 패턴이 점점 구식이 되어가고, Server Components + Server Actions가 새로운 표준이 되고 있다.
+
+개인적으로 이 방향이 맞다고 생각한다. 클라이언트에서 데이터를 가져오면 로딩 스피너 → 콘텐츠 순서가 되는데, 서버에서 가져오면 처음부터 콘텐츠가 보이니까.
+
+---
+
+## 2위: React2Shell 취약점 — CVSS 10.0의 충격
+
+이건 정말 충격적이었다.
+
+2025년 12월, 보안 연구자 Lachlan Davidson이 **React Server Components에서 원격 코드 실행(RCE) 취약점**을 발견했다.
+
+**CVE-2025-55182**, CVSS 점수 **10.0** — 가능한 최고 위험도.
+
+![충격](https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif)
+
+React Server Components를 실행하는 모든 서버에서 임의의 코드를 실행할 수 있는 취약점이었다.
+
+이 사건이 충격적이었던 이유는,
+
+1. **React**라는 가장 인기 있는 프레임워크에서 발생
+2. **Server Components**라는 비교적 새로운 기능에서 발생
+3. CVSS **10.0** — 최고 위험도
+
+이 사건으로 "서버에서 코드를 실행한다"는 것의 **보안적 의미**를 다시 생각하게 되었다.
+
+CSR 시대에는 서버가 정적 파일만 전달했으니 이런 공격 벡터가 없었다. 하지만 SSR/RSC 시대에는 서버가 사용자의 입력을 받아서 렌더링하기 때문에, 새로운 종류의 보안 위협이 생긴 것이다.
+
+이전에 "OpenCode 보안 분석" 글에서 fetch 호출을 다 찾아보며 보안을 확인했던 것처럼,
+
+**"편리한 기능"이 "새로운 공격 표면"이 될 수 있다**는 점을 항상 인지해야 한다.
+
+다행히 빠르게 패치가 이루어졌지만, 이 사건은 2025년 프론트엔드에서 가장 뜨거운 이슈였다.
+
+---
+
+## 1위: AI 코딩 도구의 진화 — 개발의 모든 것이 바뀌고 있다
+
+놀랍지 않은 1위다. **AI가 프론트엔드 개발 방식 자체를 바꾸고 있다.**
+
+2025년에 일어난 변화들:
+
+- **GitHub Copilot**이 코드 자동 완성을 넘어 PR 리뷰, 테스트 생성까지
+- **Cursor**가 AI 네이티브 에디터로 엄청난 성장
+- **Claude Code**, **OpenCode** 같은 AI 코딩 에이전트의 등장
+- **v0**, **bolt.new** 같은 AI 기반 UI 생성 도구
+
+이전에 "OpenCode 오픈소스 코드 분석" 글에서 AI 에이전트의 내부 구조를 분석했었는데,
+
+2025년을 지나면서 느낀 건 **AI 도구를 잘 쓰는 것도 개발 역량**이 되었다는 것이다.
+
+![AI 시대](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
+
+하지만 "프론트엔드 라이브 코딩 문제" 글에서도 썼듯이,
+
+AI에만 의존하면 기본기가 흔들린다. **AI가 만든 코드를 검증할 수 있는 능력**이 오히려 더 중요해졌다.
+
+"AI시대에서 살아남는 개발자란" 글에서 강조했던 **기본이 탄탄한 개발자, 시스템을 설계하는 개발자**가 정말로 필요한 시대가 된 것이다.
+
+---
+
+## 나의 2025년 프론트엔드 키워드
+
+이 글을 쓰면서 나만의 2025년 키워드를 정리해봤다.
+
+### 1. "서버로 돌아가는 중"
+
+CSR → SSR → RSC로 이어지는 흐름이 확실해졌다. 프론트엔드가 다시 서버 쪽으로 돌아가고 있다.
+
+### 2. "도구는 Rust로, 코드는 TypeScript로"
+
+빌드 도구는 Rust가 표준이 되었고, 앱 코드는 TypeScript가 표준이 되었다. 이 조합이 한동안 갈 것 같다.
+
+### 3. "AI는 동료가 되었다"
+
+더 이상 AI는 신기한 도구가 아니라, 매일 같이 일하는 동료가 되었다. 이 동료와 어떻게 협업하느냐가 중요해졌다.
+
+---
+
+## 정리하며
+
+2025년은 프론트엔드에게 정말 **격동의 해**였다.
+
+Rust 빌드 도구의 혁명, React Server Components의 성숙, AI 도구의 폭발적 성장, 그리고 React2Shell이라는 충격적인 보안 사건까지.
+
+이 모든 것을 관통하는 하나의 메시지가 있다면,
+
+> **"프론트엔드는 더 이상 '브라우저에서 예쁘게 보여주기'가 아니다."**
+
+서버, 보안, 빌드 인프라, AI까지 — 프론트엔드 개발자가 알아야 할 영역이 점점 넓어지고 있다.
+
+그래서 "AI시대에서 살아남는 개발자란" 글에서 강조한 **기본이 탄탄한 개발자**가 더욱 중요한 것이다.
+
+넓어지는 영역에 대응하려면, 깊이보다 **기본과 근본**이 탄탄해야 한다.
+
+바람이 강하게 부는 곳에서 빌딩을 높게 올리기보다는 지지대를 단단하게 고정시키는 것이 중요하듯이 말이다.
+
+2026년에는 또 어떤 롤러코스터가 기다리고 있을지 기대된다.
+
+![기대](https://media.giphy.com/media/yJFeycRK2DB4c/giphy.gif)
+
+---
+
+# Reference
+
+- [Frontend Wrapped 2025 (LogRocket)](https://blog.logrocket.com/frontend-wrapped-2025/)
+- [React2Shell Exploit (LogRocket)](https://blog.logrocket.com/react2shell-exploit/)
+- [CSS in 2026: New features (LogRocket)](https://blog.logrocket.com/css-in-2026/)
+- [8 Trends for Web Dev in 2026 (LogRocket)](https://blog.logrocket.com/8-trends-web-dev-2026/)

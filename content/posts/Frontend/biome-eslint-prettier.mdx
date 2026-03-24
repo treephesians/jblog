@@ -1,0 +1,364 @@
+---
+title: "Biome으로 ESLint + Prettier 한방에 대체하기"
+description: "Rust 기반 Biome으로 마이그레이션하면 린팅과 포매팅이 20배 빨라진다. 실전 마이그레이션 가이드."
+date: "2026-03-24"
+category: "Frontend"
+tags: ["frontend", "tooling", "rust", "dx"]
+thumbnail: "/images/thumbnails/biome-eslint-prettier.png"
+---
+
+# ESLint + Prettier, 이제 하나로 합칠 때가 됐다
+
+프론트엔드 개발자라면 ESLint와 Prettier는 거의 필수 도구다. 근데 솔직히 말하면, 이 두 도구를 같이 쓰면서 설정 충돌 때문에 고생한 경험이 한 번쯤은 있을 것이다.
+
+`eslint-config-prettier`, `eslint-plugin-prettier`... 이런 호환성 패키지를 깔고 설정하는 것도 일이다.
+
+![frustrated developer](https://media.giphy.com/media/l1KVaj5UcbHwrBMqI/giphy.gif)
+
+그런데 2024년부터 프론트엔드 생태계에 Rust 기반 툴링이 본격적으로 자리잡기 시작했다. SWC, Turbopack, Rolldown, oxc 등등. 그리고 그 흐름의 중심에 **Biome**이 있다.
+
+Biome은 ESLint와 Prettier를 **하나의 도구**로 대체할 수 있는 Rust 기반 툴이다. 설정 파일 하나, CLI 하나로 린팅과 포매팅을 모두 처리한다.
+
+> Frontend Wrapped에서 Rust 툴링 트렌드를 다뤘는데, 직접 마이그레이션해보니 체감이 확실하다. "빠르다"는 말로는 부족하고, "원래 이래야 하는 거 아닌가?"라는 생각이 든다.
+
+---
+
+## Rust 툴링 혁명, 왜 지금인가
+
+프론트엔드 툴링이 Rust로 재작성되는 흐름은 단순한 유행이 아니다. JavaScript로 작성된 도구들이 프로젝트 규모가 커지면서 성능 병목이 되기 시작했기 때문이다.
+
+| 도구 | 역할 | 대체 대상 |
+| --- | --- | --- |
+| **Biome** | 린터 + 포매터 | ESLint + Prettier |
+| **SWC** | 컴파일러 | Babel |
+| **Turbopack** | 번들러 | Webpack |
+| **Rolldown** | 번들러 | Rollup |
+| **oxc** | 파서 + 린터 | acorn + ESLint |
+
+이 도구들의 공통점은 Rust(또는 Go)로 작성되어 **네이티브 속도**를 낸다는 것이다. JavaScript 런타임 위에서 돌아가는 기존 도구 대비 10~100배 빠른 성능을 보여준다.
+
+![speed](https://media.giphy.com/media/3oriNZoNvn73MZaFYk/giphy.gif)
+
+---
+
+## Biome이 뭔데?
+
+Biome은 원래 Rome이라는 프로젝트에서 시작했다. Rome은 Facebook 출신 개발자가 만든 "올인원 프론트엔드 툴체인"을 목표로 한 프로젝트였는데, 회사 운영 문제로 중단됐다. 이후 커뮤니티가 포크해서 Biome이라는 이름으로 다시 시작한 것이다.
+
+핵심 특징은 이렇다.
+
+- **린터 + 포매터가 하나의 바이너리**에 들어있다
+- `biome.json` 하나로 모든 설정을 관리한다
+- ESLint 규칙의 약 200개 이상을 지원한다
+- Prettier와 97% 호환되는 포매팅을 제공한다
+- Node.js 런타임이 필요 없다 (네이티브 바이너리)
+
+### 성능 비교
+
+공식 벤치마크 기준으로 Biome의 성능을 보면 놀랍다.
+
+| 작업 | ESLint + Prettier | Biome | 차이 |
+| --- | --- | --- | --- |
+| 린팅 (2000 파일) | ~25초 | ~0.5초 | **~50배** |
+| 포매팅 (2000 파일) | ~8초 | ~0.3초 | **~25배** |
+| CI 전체 체크 | ~40초 | ~1초 | **~40배** |
+
+물론 프로젝트 규모와 설정에 따라 다르지만, 체감상으로도 `biome check`을 실행하면 "이거 제대로 돌아간 거 맞아?" 싶을 정도로 빠르다.
+
+![mind blown](https://media.giphy.com/media/xT0xeJpnrWC3nWcJRm/giphy.gif)
+
+---
+
+## 실전 마이그레이션 가이드
+
+자, 그럼 실제로 ESLint + Prettier에서 Biome으로 마이그레이션하는 과정을 살펴보자.
+
+### 1단계: Biome 설치
+
+```bash
+# npm
+npm install --save-dev --save-exact @biomejs/biome
+
+# pnpm
+pnpm add --save-dev --save-exact @biomejs/biome
+
+# 초기 설정 파일 생성
+npx @biomejs/biome init
+```
+
+`--save-exact`를 붙이는 이유는 Biome이 아직 빠르게 발전 중이라 마이너 버전에서도 동작이 달라질 수 있기 때문이다.
+
+### 2단계: biome.json 설정
+
+`biome.json`이 ESLint와 Prettier 설정을 모두 대체한다. 기존 설정과 비교해보자.
+
+**Before: .eslintrc.json + .prettierrc**
+
+```json
+// .eslintrc.json
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react-hooks/recommended",
+    "prettier"
+  ],
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "warn",
+    "react-hooks/exhaustive-deps": "error",
+    "prefer-const": "error"
+  }
+}
+```
+
+```json
+// .prettierrc
+{
+  "semi": true,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "printWidth": 80
+}
+```
+
+**After: biome.json**
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "error"
+      },
+      "style": {
+        "useConst": "error",
+        "noNonNullAssertion": "warn"
+      },
+      "suspicious": {
+        "noConsoleLog": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 80
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "files": {
+    "ignore": ["node_modules", ".next", "dist", "build"]
+  }
+}
+```
+
+설정 파일 하나로 린터, 포매터, import 정리까지 전부 끝난다. 깔끔하다.
+
+### 3단계: 주요 ESLint 규칙 매핑
+
+자주 쓰는 ESLint 규칙들이 Biome에서 어떻게 매핑되는지 정리했다.
+
+| ESLint 규칙 | Biome 규칙 | 카테고리 |
+| --- | --- | --- |
+| `no-unused-vars` | `correctness/noUnusedVariables` | correctness |
+| `no-console` | `suspicious/noConsoleLog` | suspicious |
+| `prefer-const` | `style/useConst` | style |
+| `eqeqeq` | `suspicious/noDoubleEquals` | suspicious |
+| `no-debugger` | `suspicious/noDebugger` | suspicious |
+| `react-hooks/exhaustive-deps` | `correctness/useExhaustiveDependencies` | correctness |
+| `react-hooks/rules-of-hooks` | `correctness/useHookAtTopLevel` | correctness |
+| `@typescript-eslint/no-explicit-any` | `suspicious/noExplicitAny` | suspicious |
+
+Biome은 규칙을 `correctness`, `style`, `suspicious`, `complexity`, `security`, `a11y` 같은 카테고리로 나눈다. 개인적으로 ESLint의 플러그인 기반 구조보다 훨씬 직관적이라고 느꼈다.
+
+### 4단계: CLI 명령어 비교
+
+```bash
+# ESLint + Prettier
+npx eslint . --fix
+npx prettier --write .
+
+# Biome (위 두 명령을 하나로)
+npx biome check --write .
+
+# 린팅만
+npx biome lint .
+
+# 포매팅만
+npx biome format --write .
+
+# CI에서 체크만 (수정 없이)
+npx biome ci .
+```
+
+`biome ci` 명령은 CI 환경에 최적화되어 있다. 에러가 있으면 non-zero exit code를 반환하고, 파일을 수정하지 않는다.
+
+### 5단계: package.json 스크립트 수정
+
+```json
+{
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
+    "ci": "biome ci ."
+  }
+}
+```
+
+### 6단계: VSCode 확장 설치
+
+VSCode를 쓴다면 **Biome** 확장을 설치하면 된다. 설치 후 `.vscode/settings.json`에 아래 설정을 추가한다.
+
+```json
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  }
+}
+```
+
+저장할 때 자동 포매팅 + import 정리가 동시에 된다. Prettier 확장은 비활성화해도 된다.
+
+![happy coding](https://media.giphy.com/media/13HgwGsXF0aiGY/giphy.gif)
+
+### 7단계: CI/CD 통합
+
+GitHub Actions 예시다.
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx biome ci .
+```
+
+기존에 ESLint와 Prettier를 따로 돌리던 스텝이 하나로 줄어든다. CI 시간도 체감될 만큼 빨라진다.
+
+### 8단계: 기존 설정 파일 정리
+
+마이그레이션이 완료되면 아래 파일들을 삭제한다.
+
+```bash
+rm .eslintrc.json .eslintrc.js .prettierrc .prettierrc.json .prettierignore .eslintignore
+npm uninstall eslint prettier eslint-config-prettier eslint-plugin-prettier @typescript-eslint/eslint-plugin @typescript-eslint/parser
+```
+
+이렇게 하면 `devDependencies`도 한결 가벼워진다.
+
+![clean up](https://media.giphy.com/media/3o7btNa0RUYa5E7iiQ/giphy.gif)
+
+---
+
+## Biome이 아직 못하는 것들
+
+솔직히 말하면 Biome이 만능은 아니다. 마이그레이션 전에 아래 사항을 꼭 확인해야 한다.
+
+### 지원되지 않는 ESLint 플러그인
+
+- `eslint-plugin-import`: import 순서 정리는 `organizeImports`로 대체 가능하지만, 경로 alias 검증 같은 고급 기능은 아직 없다
+- `eslint-plugin-jsx-a11y`: 일부 접근성 규칙은 Biome의 `a11y` 카테고리에 있지만 전부 커버하진 못한다
+- `eslint-plugin-testing-library`: 테스트 관련 규칙은 아직 미지원이다
+- **커스텀 ESLint 규칙**: 팀에서 직접 작성한 커스텀 규칙은 Biome에서 사용할 수 없다
+
+### 기타 제한사항
+
+- `.vue` 파일은 아직 부분적 지원이다
+- 일부 Prettier 플러그인(예: `prettier-plugin-tailwindcss`)을 대체할 수 없다
+- Biome 자체의 플러그인 시스템이 아직 초기 단계다
+
+> 핵심은 이거다. 팀에서 ESLint 플러그인을 많이 쓰고 있다면, 해당 규칙들이 Biome에서 지원되는지 먼저 확인하자. [공식 문서의 규칙 목록](https://biomejs.dev/linter/rules/)에서 확인할 수 있다.
+
+---
+
+## 언제 마이그레이션하고, 언제 남아야 할까
+
+### 마이그레이션을 추천하는 경우
+
+- 새 프로젝트를 시작할 때 (가장 좋은 타이밍이다)
+- ESLint + Prettier 설정 충돌로 고통받고 있을 때
+- CI 빌드 시간을 줄이고 싶을 때
+- `devDependencies`를 정리하고 싶을 때
+- 팀에서 커스텀 ESLint 규칙을 거의 쓰지 않을 때
+
+### ESLint를 유지하는 게 나은 경우
+
+- `eslint-plugin-testing-library` 등 특수 플러그인에 의존하는 경우
+- 커스텀 ESLint 규칙이 많은 경우
+- 대규모 모노레포에서 점진적 마이그레이션이 부담스러운 경우
+- Vue 프로젝트인 경우 (아직은)
+
+개인적으로는 새 프로젝트라면 무조건 Biome부터 시작하라고 말하고 싶다. 기존 프로젝트도 플러그인 의존이 적다면 마이그레이션할 가치가 충분하다.
+
+---
+
+## Rust 생태계의 미래
+
+Biome은 Rust 기반 프론트엔드 툴링의 한 조각일 뿐이다. 전체 그림을 보면 더 흥미롭다.
+
+- **oxc**: Rust로 작성된 JavaScript 파서이자 린터. Biome과는 다른 접근 방식으로, Rolldown의 기반이 되고 있다
+- **Rolldown**: Vite의 차세대 번들러. Rollup 호환 API를 제공하면서 Rust 속도를 낸다
+- **SWC**: Next.js에서 이미 기본 컴파일러로 채택된 Rust 기반 도구. Babel을 대체한다
+- **Turbopack**: Vercel이 개발 중인 Rust 기반 번들러. Next.js 개발 서버에서 사용된다
+
+이 도구들이 성숙해지면 프론트엔드 개발 환경에서 **JavaScript로 작성된 빌드 도구는 거의 사라질 가능성**이 있다. Webpack, Babel, ESLint, Prettier가 모두 Rust/Go 기반 도구로 대체되는 미래가 생각보다 빨리 올 수 있다.
+
+![future](https://media.giphy.com/media/l0HlNQ03J5JR3V2sE/giphy.gif)
+
+---
+
+## 마치며
+
+ESLint + Prettier에서 Biome으로 마이그레이션하면서 느낀 건, **좋은 DX는 도구의 속도에서 시작한다**는 것이다.
+
+`biome check`이 1초 만에 끝나니까 저장할 때마다 부담 없이 실행하게 되고, CI 파이프라인도 간결해진다. 설정 파일이 하나로 줄어드니 온보딩할 때 설명해야 할 것도 줄어든다.
+
+물론 아직 ESLint 생태계의 풍부한 플러그인을 100% 대체하진 못하지만, Biome의 발전 속도를 보면 시간 문제라고 생각한다.
+
+Rust 툴링 트렌드가 단순한 유행이 아니라 실질적인 개발 경험의 변화를 가져온다는 걸, 직접 마이그레이션해보면 확실히 체감할 수 있다.
+
+![thumbs up](https://media.giphy.com/media/111ebonMs90YLu/giphy.gif)
+
+---
+
+# 참고
+
+[Biome 공식 문서](https://biomejs.dev/)
+
+[Biome 규칙 목록](https://biomejs.dev/linter/rules/)
+
+[Biome GitHub](https://github.com/biomejs/biome)
+
+[ESLint에서 Biome으로 마이그레이션 가이드](https://biomejs.dev/guides/migrate-eslint-prettier/)
+
+[oxc 프로젝트](https://oxc-project.github.io/)
+
+[Rolldown](https://rolldown.rs/)

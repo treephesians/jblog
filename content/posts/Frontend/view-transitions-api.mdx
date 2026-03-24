@@ -1,0 +1,390 @@
+---
+title: "View Transitions API — 웹에서 네이티브급 전환 효과 만들기"
+description: "View Transitions API로 웹 앱에 부드러운 페이지 전환을 구현하는 방법을 알아본다."
+date: "2026-03-24"
+category: "Frontend"
+tags: ["frontend", "css", "animation", "react"]
+thumbnail: "/images/thumbnails/view-transitions-api.png"
+---
+
+# 웹에서도 네이티브처럼 부드러운 전환이 가능하다고?
+
+모바일 네이티브 앱을 쓰다 보면 페이지 간 전환이 정말 부드럽다. 카드를 탭하면 자연스럽게 확대되고, 뒤로 가기를 누르면 원래 위치로 돌아간다.
+
+그런데 웹은? 페이지 이동하면 화면이 뚝 끊기고, 새로운 페이지가 로드되면서 깜박인다.
+
+이 차이가 사용자 경험에 미치는 영향은 생각보다 크다.
+
+![smooth transition](https://media.giphy.com/media/3o7btNhMBytxAM6YBa/giphy.gif)
+
+지금까지 웹에서 부드러운 전환을 구현하려면 GSAP, Framer Motion 같은 라이브러리에 의존해야 했다. 하지만 이제 브라우저 네이티브 API로 이걸 해결할 수 있다.
+
+바로 **View Transitions API**다.
+
+---
+
+## View Transitions API란?
+
+View Transitions API는 DOM 상태가 변경될 때 두 상태 사이에 애니메이션 전환을 만들어주는 브라우저 네이티브 API다.
+
+동작 원리를 간단히 설명하면 이렇다:
+
+1. 현재 화면의 **스냅샷(old state)**을 캡처한다.
+2. DOM을 업데이트한다.
+3. 새로운 화면의 **스냅샷(new state)**을 캡처한다.
+4. 두 스냅샷 사이에 **GPU 가속 애니메이션**을 적용한다.
+
+> 핵심은 GPU 가속이다. CSS transform과 opacity를 활용해서 메인 스레드를 거의 차지하지 않기 때문에, 저사양 기기에서도 부드러운 전환이 가능하다.
+
+### 기존 라이브러리와 비교
+
+| 항목 | GSAP / Framer Motion | View Transitions API |
+| --- | --- | --- |
+| 번들 사이즈 | 20~50KB+ | 0KB (브라우저 네이티브) |
+| GPU 가속 | 수동 설정 필요 | 자동 |
+| 저사양 기기 성능 | 프레임 드랍 가능 | 2~3배 더 부드러움 |
+| 크로스 도큐먼트 전환 | 불가능 | 가능 (Chrome 126+) |
+| 학습 곡선 | 높음 | 낮음 |
+
+번들 사이즈가 0이라는 게 가장 큰 장점이다. 라이브러리를 설치할 필요 없이 브라우저가 알아서 처리해준다.
+
+![magic](https://media.giphy.com/media/12NUbkX6p4xOO4/giphy.gif)
+
+---
+
+## 기본 사용법: startViewTransition()
+
+가장 기본적인 사용법부터 알아보자.
+
+```typescript
+// DOM 업데이트를 startViewTransition으로 감싸면 끝이다
+document.startViewTransition(() => {
+  // 여기서 DOM을 업데이트한다
+  document.querySelector('.content').innerHTML = newContent;
+});
+```
+
+이게 전부다. 이렇게만 해도 기본적인 크로스페이드 애니메이션이 적용된다.
+
+비동기 작업도 지원한다:
+
+```typescript
+document.startViewTransition(async () => {
+  // 데이터를 가져온 후 DOM을 업데이트
+  const data = await fetchNewPageData();
+  updateDOM(data);
+});
+```
+
+### 전환 애니메이션 커스터마이징
+
+기본 크로스페이드가 마음에 들지 않으면 CSS로 커스터마이징할 수 있다.
+
+```css
+/* 기본 전환 애니메이션 커스터마이징 */
+::view-transition-old(root) {
+  animation: fade-out 0.3s ease-out;
+}
+
+::view-transition-new(root) {
+  animation: fade-in 0.3s ease-in;
+}
+
+/* 슬라이드 효과를 원한다면 */
+@keyframes slide-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+::view-transition-old(root) {
+  animation: slide-out 0.3s ease-in-out;
+}
+
+::view-transition-new(root) {
+  animation: slide-in 0.3s ease-in-out;
+}
+```
+
+`::view-transition-old`는 이전 화면의 스냅샷, `::view-transition-new`는 새 화면의 스냅샷을 나타내는 가상 요소다.
+
+---
+
+## Named View Transitions: 진짜 마법은 여기서 시작된다
+
+기본 전환도 좋지만, 진짜 네이티브 앱 같은 느낌을 주려면 **Named View Transitions**이 필요하다.
+
+특정 요소에 `view-transition-name`을 지정하면, 해당 요소가 페이지 간에 **모핑(morphing)** 되면서 이동한다.
+
+![mind blown](https://media.giphy.com/media/xT0xeJpnrWC3xWRBe0/giphy.gif)
+
+### CSS view-transition-name 속성
+
+```css
+/* 리스트 페이지의 카드 이미지 */
+.card-image {
+  view-transition-name: hero-image;
+}
+
+/* 상세 페이지의 히어로 이미지 */
+.detail-hero {
+  view-transition-name: hero-image;
+}
+```
+
+같은 `view-transition-name`을 가진 요소끼리 자동으로 전환 애니메이션이 적용된다. 카드의 작은 이미지가 상세 페이지의 큰 이미지로 부드럽게 확대되는 것이다.
+
+**주의할 점**: `view-transition-name`은 페이지 내에서 고유해야 한다. 같은 이름이 두 개 이상 있으면 전환이 깨진다.
+
+```css
+/* 동적으로 고유한 이름을 부여하는 패턴 */
+.card:nth-child(1) .card-image {
+  view-transition-name: card-image-1;
+}
+.card:nth-child(2) .card-image {
+  view-transition-name: card-image-2;
+}
+
+/* 또는 인라인 스타일로 동적 할당 */
+```
+
+```typescript
+// JS로 동적 할당하는 게 더 실용적이다
+cards.forEach((card, index) => {
+  card.style.viewTransitionName = `card-${index}`;
+});
+```
+
+---
+
+## React에서의 활용: `<ViewTransition>` 컴포넌트
+
+React 팀은 실험적으로 `<ViewTransition>` 컴포넌트를 도입했다. React의 상태 변경과 View Transitions API를 자연스럽게 연결해준다.
+
+```tsx
+import { ViewTransition, startTransition } from 'react';
+
+function App() {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  return (
+    <div>
+      {selectedId ? (
+        <ViewTransition name="hero-card">
+          <DetailView
+            id={selectedId}
+            onBack={() => {
+              startTransition(() => setSelectedId(null));
+            }}
+          />
+        </ViewTransition>
+      ) : (
+        <CardList
+          onSelect={(id) => {
+            startTransition(() => setSelectedId(id));
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CardList({ onSelect }: { onSelect: (id: string) => void }) {
+  return (
+    <div className="grid">
+      {items.map((item) => (
+        <ViewTransition key={item.id} name={`card-${item.id}`}>
+          <div className="card" onClick={() => onSelect(item.id)}>
+            <img src={item.image} alt={item.title} />
+            <h3>{item.title}</h3>
+          </div>
+        </ViewTransition>
+      ))}
+    </div>
+  );
+}
+```
+
+> `startTransition`으로 상태를 업데이트하면 React가 자동으로 View Transitions API를 트리거한다. 이게 정말 편하다.
+
+![excited](https://media.giphy.com/media/5VKbvrjxpVJCM/giphy.gif)
+
+---
+
+## Next.js에서 View Transitions 적용하기
+
+Next.js App Router에서는 설정 한 줄이면 된다.
+
+```typescript
+// next.config.ts
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
+};
+
+export default nextConfig;
+```
+
+이 설정을 켜면 Next.js의 라우터 네비게이션에 자동으로 View Transitions가 적용된다. `Link` 컴포넌트로 이동할 때 부드러운 전환이 생긴다.
+
+### 실전 예시: 블로그 포스트 카드 전환
+
+```tsx
+// app/posts/page.tsx
+import Link from 'next/link';
+
+export default function PostList({ posts }: { posts: Post[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {posts.map((post) => (
+        <Link key={post.slug} href={`/posts/${post.slug}`}>
+          <article>
+            <img
+              src={post.thumbnail}
+              alt={post.title}
+              style={{ viewTransitionName: `post-image-${post.slug}` }}
+            />
+            <h2 style={{ viewTransitionName: `post-title-${post.slug}` }}>
+              {post.title}
+            </h2>
+          </article>
+        </Link>
+      ))}
+    </div>
+  );
+}
+```
+
+```tsx
+// app/posts/[slug]/page.tsx
+export default function PostDetail({ params }: { params: { slug: string } }) {
+  const post = getPost(params.slug);
+
+  return (
+    <article>
+      <img
+        src={post.thumbnail}
+        alt={post.title}
+        style={{ viewTransitionName: `post-image-${params.slug}` }}
+      />
+      <h1 style={{ viewTransitionName: `post-title-${params.slug}` }}>
+        {post.title}
+      </h1>
+      <div>{post.content}</div>
+    </article>
+  );
+}
+```
+
+카드의 썸네일과 제목이 상세 페이지로 이동할 때 자연스럽게 모핑된다. 네이티브 앱에서 흔히 보던 그 효과를 몇 줄의 코드로 구현할 수 있다.
+
+---
+
+## 브라우저 지원 현황
+
+현실적으로 가장 중요한 부분이다.
+
+| 브라우저 | Same-document | Cross-document |
+| --- | --- | --- |
+| Chrome | 111+ | 126+ |
+| Edge | 111+ | 126+ |
+| Safari | 18+ | 미지원 |
+| Firefox | 미지원 | 미지원 |
+
+Firefox가 아직 미지원이라는 게 아쉽지만, Chrome + Edge + Safari를 합치면 전 세계 브라우저 점유율의 약 85% 이상을 커버한다.
+
+### 폴백 전략
+
+지원하지 않는 브라우저에서도 앱이 깨지면 안 된다. 다행히 폴백 처리가 간단하다.
+
+```typescript
+// startViewTransition이 없으면 그냥 DOM을 업데이트한다
+function navigate(updateDOM: () => void) {
+  if (!document.startViewTransition) {
+    updateDOM();
+    return;
+  }
+
+  document.startViewTransition(() => {
+    updateDOM();
+  });
+}
+```
+
+```css
+/* CSS에서도 @supports로 분기 가능 */
+@supports (view-transition-name: none) {
+  .card-image {
+    view-transition-name: hero-image;
+  }
+}
+```
+
+View Transitions API의 좋은 점은 **점진적 향상(Progressive Enhancement)**이 자연스럽다는 것이다. 지원하는 브라우저에서는 부드러운 전환이 보이고, 지원하지 않는 브라우저에서는 그냥 기존처럼 동작한다. 아무것도 깨지지 않는다.
+
+![thumbs up](https://media.giphy.com/media/111ebonMs90YLu/giphy.gif)
+
+---
+
+## 한계점과 주의사항
+
+만능은 아니다. 몇 가지 한계점이 있다.
+
+1. **전환 중 스크롤 불가**: 전환 애니메이션이 진행되는 동안 사용자는 스크롤할 수 없다. 전환 시간을 짧게(300ms 이하) 유지하는 것이 좋다.
+2. **접근성 고려**: `prefers-reduced-motion` 미디어 쿼리를 반드시 존중해야 한다.
+3. **복잡한 레이아웃 전환**: 요소의 위치와 크기가 크게 달라지는 경우 모핑이 부자연스러울 수 있다.
+4. **동시 다발적 전환**: 한 번에 하나의 view transition만 실행 가능하다.
+
+```css
+/* 모션 감소 설정을 존중하는 코드 */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+```
+
+---
+
+## Svelte의 ssgoi에서 네이티브 API로
+
+이전에 FEConf 발표 중 Svelte 생태계에서 **ssgoi 라이브러리**가 모바일급 페이지 전환을 구현한 사례를 다룬 적이 있다. ssgoi는 Svelte의 특성을 활용해서 정말 인상적인 전환 효과를 보여줬다.
+
+그런데 이제 React/Next.js에서도 네이티브 API로 비슷한 수준의 전환을 구현할 수 있게 되었다. 라이브러리 없이, 브라우저가 제공하는 API만으로.
+
+> 프레임워크에 종속된 솔루션에서 웹 표준으로의 이동. 이게 웹 플랫폼이 발전하는 방향이라고 생각한다.
+
+![evolution](https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif)
+
+---
+
+## 마치며
+
+View Transitions API를 사용해보면서 느낀 점은, 웹과 네이티브 앱의 경험 차이가 점점 줄어들고 있다는 것이다.
+
+예전에는 "웹은 원래 좀 뚝뚝 끊기지" 하면서 넘어갔던 부분들이, 이제는 브라우저 레벨에서 해결되고 있다. GPU 가속 전환, 크로스 도큐먼트 애니메이션, 요소 간 모핑까지.
+
+개인적으로는 저사양 기기에서 체감되는 성능 향상이 가장 인상적이었다. 라이브러리 기반 애니메이션은 JS 메인 스레드를 많이 사용하기 때문에 저사양 기기에서 프레임 드랍이 심했는데, View Transitions API는 GPU에서 처리하니까 훨씬 부드럽다.
+
+아직 Firefox 지원이 안 되는 건 아쉽지만, 폴백이 자연스러워서 지금 당장 프로덕션에 도입해도 문제없다고 생각한다. 점진적 향상의 좋은 예시다.
+
+웹 개발자로서 이런 API가 표준화되는 걸 보면 정말 신난다. 앞으로 웹이 네이티브 앱과 경쟁할 수 있는 영역이 더 넓어질 것이다.
+
+---
+
+## 참고 자료
+
+- [MDN - View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API)
+- [Chrome Developers - Smooth transitions with the View Transition API](https://developer.chrome.com/docs/web-platform/view-transitions)
+- [Next.js Docs - viewTransition](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition)
+- [React RFC - ViewTransition Component](https://github.com/reactjs/rfcs/blob/main/text/0000-view-transitions.md)
+- [Can I Use - View Transitions](https://caniuse.com/view-transitions)

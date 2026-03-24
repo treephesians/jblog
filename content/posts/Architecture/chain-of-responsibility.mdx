@@ -1,0 +1,269 @@
+---
+title: "Chain of Responsibility 패턴"
+description: "요청을 핸들러 체인을 따라 전달하는 Chain of Responsibility 패턴을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "behavioral", "architecture"]
+thumbnail: "/images/thumbnails/chain-of-responsibility.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 13
+---
+
+# 고객센터에 전화하면 벌어지는 일
+
+고객센터에 전화하면 이런 경험을 해본 적 있을 것이다.
+
+1. **자동 응답**: "1번은 결제, 2번은 배송, 3번은 기타"
+2. **1차 상담원**: "아, 이건 제 권한 밖이네요. 전문 상담원에게 연결해드리겠습니다"
+3. **2차 상담원**: "음, 이건 매니저 승인이 필요합니다. 잠시만요"
+4. **매니저**: "네, 처리해드리겠습니다"
+
+요청이 **체인을 따라 전달**되면서, 처리할 수 있는 사람이 나올 때까지 넘어간다.
+
+![전화 돌리기](https://media.giphy.com/media/l0IylOPCNkiqOgMyA/giphy.gif)
+
+코드에서도 이런 상황이 생긴다.
+
+---
+
+## Chain of Responsibility란?
+
+> 요청을 **핸들러 체인**을 따라 전달하여, 각 핸들러가 요청을 처리하거나 다음 핸들러에게 넘기는 패턴
+
+각 핸들러는 두 가지 선택지가 있다.
+
+1. **자신이 처리한다** → 체인 종료
+2. **다음 핸들러에게 넘긴다** → 체인 계속
+
+---
+
+## 코드로 보기
+
+### HTTP 요청 처리 미들웨어
+
+Express의 미들웨어가 바로 이 패턴이다. 직접 구현해보자.
+
+```typescript
+// Handler 인터페이스
+abstract class Middleware {
+  private next: Middleware | null = null;
+
+  // 체인 연결
+  setNext(middleware: Middleware): Middleware {
+    this.next = middleware;
+    return middleware; // 체이닝을 위해 다음 핸들러 반환
+  }
+
+  // 요청 처리 또는 다음으로 전달
+  handle(request: HttpRequest): HttpResponse | null {
+    if (this.next) {
+      return this.next.handle(request);
+    }
+    return null;
+  }
+}
+
+interface HttpRequest {
+  path: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: any;
+  user?: { id: string; role: string };
+}
+
+interface HttpResponse {
+  status: number;
+  body: any;
+}
+```
+
+### 미들웨어 구현
+
+```typescript
+// 1. 인증 미들웨어
+class AuthMiddleware extends Middleware {
+  handle(request: HttpRequest): HttpResponse | null {
+    const token = request.headers["authorization"];
+
+    if (!token) {
+      return { status: 401, body: { error: "인증 토큰이 없습니다" } };
+    }
+
+    // 토큰 검증 (간소화)
+    if (token === "Bearer valid-token") {
+      request.user = { id: "user-123", role: "admin" };
+      console.log("✅ 인증 성공");
+      return super.handle(request); // 다음 핸들러로!
+    }
+
+    return { status: 401, body: { error: "유효하지 않은 토큰" } };
+  }
+}
+
+// 2. 권한 체크 미들웨어
+class RoleMiddleware extends Middleware {
+  constructor(private requiredRole: string) {
+    super();
+  }
+
+  handle(request: HttpRequest): HttpResponse | null {
+    if (request.user?.role !== this.requiredRole) {
+      return { status: 403, body: { error: "권한이 없습니다" } };
+    }
+
+    console.log(`✅ 권한 확인: ${this.requiredRole}`);
+    return super.handle(request);
+  }
+}
+
+// 3. Rate Limiting 미들웨어
+class RateLimitMiddleware extends Middleware {
+  private requests = new Map<string, number[]>();
+  private limit: number;
+  private window: number;
+
+  constructor(limit = 100, windowMs = 60000) {
+    super();
+    this.limit = limit;
+    this.window = windowMs;
+  }
+
+  handle(request: HttpRequest): HttpResponse | null {
+    const userId = request.user?.id ?? "anonymous";
+    const now = Date.now();
+    const timestamps = this.requests.get(userId) ?? [];
+
+    // 윈도우 밖의 요청 제거
+    const recent = timestamps.filter((t) => now - t < this.window);
+
+    if (recent.length >= this.limit) {
+      return { status: 429, body: { error: "요청이 너무 많습니다" } };
+    }
+
+    recent.push(now);
+    this.requests.set(userId, recent);
+    console.log(`✅ Rate limit OK (${recent.length}/${this.limit})`);
+    return super.handle(request);
+  }
+}
+
+// 4. 로깅 미들웨어
+class LoggingMiddleware extends Middleware {
+  handle(request: HttpRequest): HttpResponse | null {
+    console.log(`📝 ${request.method} ${request.path}`);
+    const start = Date.now();
+
+    const response = super.handle(request);
+
+    console.log(`📝 응답: ${response?.status} (${Date.now() - start}ms)`);
+    return response;
+  }
+}
+
+// 5. 실제 핸들러
+class ApiHandler extends Middleware {
+  handle(request: HttpRequest): HttpResponse | null {
+    // 모든 미들웨어를 통과했으면 실제 처리
+    return {
+      status: 200,
+      body: { message: "성공!", user: request.user },
+    };
+  }
+}
+```
+
+### 체인 조립
+
+```typescript
+// 체인 구성
+const logging = new LoggingMiddleware();
+const auth = new AuthMiddleware();
+const role = new RoleMiddleware("admin");
+const rateLimit = new RateLimitMiddleware(100);
+const handler = new ApiHandler();
+
+// 체인 연결: 로깅 → 인증 → 권한 → Rate Limit → 핸들러
+logging.setNext(auth).setNext(role).setNext(rateLimit).setNext(handler);
+
+// 요청 처리
+const response = logging.handle({
+  path: "/api/admin/users",
+  method: "GET",
+  headers: { authorization: "Bearer valid-token" },
+});
+
+// 📝 GET /api/admin/users
+// ✅ 인증 성공
+// ✅ 권한 확인: admin
+// ✅ Rate limit OK (1/100)
+// 📝 응답: 200 (3ms)
+```
+
+각 미들웨어가 독립적이고, 순서를 바꾸거나 새 미들웨어를 추가하는 것이 쉽다.
+
+![체인 완성](https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif)
+
+---
+
+## Express 미들웨어가 바로 이것
+
+```typescript
+// Express의 미들웨어 = Chain of Responsibility
+app.use(cors());           // CORS 체크
+app.use(helmet());         // 보안 헤더
+app.use(morgan("dev"));   // 로깅
+app.use(auth());           // 인증
+app.use(rateLimit());      // Rate Limiting
+
+app.get("/api/users", (req, res) => {
+  // 모든 미들웨어를 통과한 요청만 여기 도달
+  res.json(users);
+});
+```
+
+`next()`가 바로 "다음 핸들러에게 전달"하는 역할이다.
+
+---
+
+## 언제 사용하면 좋을까?
+
+1. **요청을 여러 핸들러가 순차적으로 처리해야 할 때**
+   - HTTP 미들웨어, 이벤트 처리, 유효성 검증
+
+2. **핸들러의 순서나 조합을 동적으로 변경하고 싶을 때**
+   - A/B 테스트에서 다른 미들웨어 체인 적용
+
+3. **어떤 핸들러가 처리할지 런타임에 결정될 때**
+   - 로그 레벨에 따라 다른 핸들러가 처리
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| 핸들러 간 결합도가 낮음 | 요청이 처리되지 않을 수 있음 |
+| 핸들러 추가/제거/순서 변경이 쉬움 | 디버깅 시 체인 추적이 어려울 수 있음 |
+| SRP — 각 핸들러가 하나의 책임 | 체인이 길면 성능 영향 |
+
+---
+
+## 정리하며
+
+Chain of Responsibility는 **요청을 체인을 따라 전달**하는 패턴이다.
+
+핵심을 한 줄로 요약하면,
+
+> **"내가 못 하면 다음 사람에게 넘겨라"**
+
+Express 미들웨어를 써본 적 있다면 이미 이 패턴을 잘 알고 있는 것이다.
+
+다음 글에서는 요청을 객체로 캡슐화하는 **Command** 패턴을 알아보겠다.
+
+---
+
+# Reference
+
+[Refactoring Guru - Chain of Responsibility](https://refactoring.guru/design-patterns/chain-of-responsibility)

@@ -1,0 +1,406 @@
+---
+title: "Strategy 패턴"
+description: "같은 목적, 다른 방법. 알고리즘을 캡슐화하고 교체 가능하게 만드는 Strategy 패턴을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "behavioral", "architecture"]
+thumbnail: "/images/thumbnails/strategy.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 20
+---
+
+# 네비게이션 앱의 고민
+
+집에서 강남역까지 간다고 해보자. 목적지는 같은데, 가는 방법은 여러 가지다.
+
+- **최단 경로**: 거리가 제일 짧은 길
+- **최빠른 경로**: 시간이 제일 적게 걸리는 길
+- **최저가 경로**: 톨게이트 안 거치는 길
+
+![네비게이션 고민](https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif)
+
+처음에는 하나의 경로 알고리즘만 있었다. 그런데 사용자들이 "나는 돈 아끼고 싶어요", "나는 빨리 가고 싶어요" 하면서 요구사항이 늘어났다. 알고리즘이 추가될 때마다 코드는 점점 뚱뚱해지고, if-else 지옥이 펼쳐진다.
+
+**목표는 같은데 방법만 다르다.** 이럴 때 Strategy 패턴이 빛을 발한다.
+
+---
+
+## Strategy 패턴이란?
+
+> **알고리즘의 가족(family)** 을 정의하고, 각각을 캡슐화하여 **서로 교체 가능하게** 만드는 패턴
+
+핵심 아이디어는 간단하다. "변하는 부분을 뽑아내서 별도 객체로 만들자."
+
+Strategy 패턴은 아마 **행동(Behavioral) 패턴 중에서 가장 많이 쓰이는 패턴**일 것이다. 한 번 알면 코드 곳곳에서 이 패턴이 보이기 시작한다.
+
+구조는 이렇다.
+
+```
+Context (네비게이션 앱)
+  │
+  ├── Strategy 인터페이스 (경로 계산)
+  │     ├── ConcreteStrategyA (최단 경로)
+  │     ├── ConcreteStrategyB (최빠른 경로)
+  │     └── ConcreteStrategyC (최저가 경로)
+```
+
+Context는 Strategy를 **가지고 있을 뿐**, 구체적인 알고리즘은 모른다. 런타임에 원하는 Strategy를 꽂아넣으면 된다.
+
+---
+
+## Before: if-else 지옥
+
+결제 시스템을 만든다고 해보자. 신용카드, 계좌이체, 암호화폐 결제를 지원해야 한다.
+
+```typescript
+class PaymentService {
+  pay(method: string, amount: number): string {
+    if (method === "credit-card") {
+      // 카드 유효성 검증
+      // PG사 API 호출
+      // 승인번호 발급
+      console.log(`신용카드로 ${amount}원 결제`);
+      return `CARD-${Date.now()}`;
+    } else if (method === "bank-transfer") {
+      // 계좌 확인
+      // 이체 요청
+      // 입금 확인
+      console.log(`계좌이체로 ${amount}원 결제`);
+      return `BANK-${Date.now()}`;
+    } else if (method === "crypto") {
+      // 지갑 주소 확인
+      // 트랜잭션 생성
+      // 블록 확인 대기
+      console.log(`암호화폐로 ${amount}원 결제`);
+      return `CRYPTO-${Date.now()}`;
+    }
+    // 새로운 결제 수단 추가? 여기에 또 else if...
+    throw new Error(`지원하지 않는 결제 방식: ${method}`);
+  }
+}
+```
+
+문제가 뭘까?
+
+1. **결제 수단 추가 = PaymentService 수정** → OCP(개방-폐쇄 원칙) 위반
+2. **테스트하기 어렵다** → 하나의 메서드에 모든 로직이 뭉쳐있다
+3. **코드가 비대해진다** → 결제 수단이 10개면? 수백 줄짜리 if-else
+
+![if-else 지옥](https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.gif)
+
+---
+
+## After: Strategy 패턴 적용
+
+```typescript
+// Strategy 인터페이스
+interface PaymentStrategy {
+  pay(amount: number): string;
+  validate(): boolean;
+}
+
+// Concrete Strategy 1: 신용카드
+class CreditCardPayment implements PaymentStrategy {
+  constructor(
+    private cardNumber: string,
+    private cvv: string,
+    private expiryDate: string
+  ) {}
+
+  validate(): boolean {
+    // Luhn 알고리즘으로 카드번호 검증
+    return this.cardNumber.length === 16 && this.cvv.length === 3;
+  }
+
+  pay(amount: number): string {
+    if (!this.validate()) throw new Error("유효하지 않은 카드 정보");
+    console.log(`신용카드(${this.cardNumber.slice(-4)})로 ${amount}원 결제`);
+    return `CARD-${Date.now()}`;
+  }
+}
+
+// Concrete Strategy 2: 계좌이체
+class BankTransferPayment implements PaymentStrategy {
+  constructor(
+    private bankCode: string,
+    private accountNumber: string
+  ) {}
+
+  validate(): boolean {
+    return this.bankCode.length > 0 && this.accountNumber.length > 0;
+  }
+
+  pay(amount: number): string {
+    if (!this.validate()) throw new Error("유효하지 않은 계좌 정보");
+    console.log(`계좌이체(${this.bankCode})로 ${amount}원 결제`);
+    return `BANK-${Date.now()}`;
+  }
+}
+
+// Concrete Strategy 3: 암호화폐
+class CryptoPayment implements PaymentStrategy {
+  constructor(private walletAddress: string) {}
+
+  validate(): boolean {
+    return this.walletAddress.startsWith("0x") && this.walletAddress.length === 42;
+  }
+
+  pay(amount: number): string {
+    if (!this.validate()) throw new Error("유효하지 않은 지갑 주소");
+    console.log(`암호화폐(${this.walletAddress.slice(0, 8)}...)로 ${amount}원 결제`);
+    return `CRYPTO-${Date.now()}`;
+  }
+}
+```
+
+그리고 Context 클래스.
+
+```typescript
+// Context
+class PaymentService {
+  private strategy: PaymentStrategy;
+
+  constructor(strategy: PaymentStrategy) {
+    this.strategy = strategy;
+  }
+
+  // 런타임에 전략 교체 가능
+  setStrategy(strategy: PaymentStrategy) {
+    this.strategy = strategy;
+  }
+
+  checkout(amount: number): string {
+    // PaymentService는 "어떻게" 결제하는지 모른다
+    // 그냥 strategy에게 위임할 뿐이다
+    return this.strategy.pay(amount);
+  }
+}
+```
+
+사용하는 쪽은 이렇다.
+
+```typescript
+// 신용카드로 결제
+const payment = new PaymentService(
+  new CreditCardPayment("1234567890123456", "123", "12/28")
+);
+payment.checkout(50000); // 신용카드(3456)로 50000원 결제
+
+// 결제 수단 변경? 전략만 교체하면 된다
+payment.setStrategy(new CryptoPayment("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68"));
+payment.checkout(100000); // 암호화폐(0x742d35...)로 100000원 결제
+```
+
+새로운 결제 수단(카카오페이, 네이버페이 등)이 추가되면? `PaymentStrategy`를 구현하는 새 클래스만 만들면 된다. **기존 코드는 한 줄도 수정할 필요가 없다.**
+
+---
+
+## 함수형 스타일로도 가능하다
+
+TypeScript에서는 클래스 없이 함수만으로도 Strategy 패턴을 구현할 수 있다. 사실 이 방식이 더 자주 쓰인다.
+
+```typescript
+// Strategy를 타입으로 정의
+type SortStrategy<T> = (arr: T[]) => T[];
+
+// 각 전략은 그냥 함수
+const bubbleSort: SortStrategy<number> = (arr) => {
+  const result = [...arr];
+  for (let i = 0; i < result.length; i++) {
+    for (let j = 0; j < result.length - i - 1; j++) {
+      if (result[j] > result[j + 1]) {
+        [result[j], result[j + 1]] = [result[j + 1], result[j]];
+      }
+    }
+  }
+  return result;
+};
+
+const quickSort: SortStrategy<number> = (arr) => {
+  if (arr.length <= 1) return arr;
+  const pivot = arr[0];
+  const left = arr.slice(1).filter((x) => x <= pivot);
+  const right = arr.slice(1).filter((x) => x > pivot);
+  return [...quickSort(left), pivot, ...quickSort(right)];
+};
+
+// Context도 그냥 함수
+function sortData<T>(data: T[], strategy: SortStrategy<T>): T[] {
+  console.log(`정렬 시작: ${data.length}개 항목`);
+  const result = strategy(data);
+  console.log(`정렬 완료`);
+  return result;
+}
+
+// 사용
+const data = [64, 34, 25, 12, 22, 11, 90];
+sortData(data, bubbleSort);  // 작은 배열 → 버블 정렬
+sortData(data, quickSort);   // 큰 배열 → 퀵 정렬
+```
+
+사실 JavaScript/TypeScript에서 함수를 인자로 넘기는 건 이미 Strategy 패턴을 쓰고 있는 것이다. `Array.sort()`에 비교 함수를 넘기는 것도, `map()`에 변환 함수를 넘기는 것도 전부 Strategy다.
+
+---
+
+## 실전에서 만나는 Strategy 패턴
+
+### 1. Passport.js — 인증 전략
+
+Node.js의 인증 라이브러리 Passport.js는 Strategy 패턴의 교과서적인 예시다.
+
+```typescript
+import passport from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as GitHubStrategy } from "passport-github2";
+import { Strategy as LocalStrategy } from "passport-local";
+
+// 전략 1: Google OAuth
+passport.use(
+  new GoogleStrategy(
+    { clientID: "...", clientSecret: "...", callbackURL: "/auth/google/callback" },
+    (accessToken, refreshToken, profile, done) => {
+      // Google 로그인 로직
+    }
+  )
+);
+
+// 전략 2: GitHub OAuth
+passport.use(
+  new GitHubStrategy(
+    { clientID: "...", clientSecret: "...", callbackURL: "/auth/github/callback" },
+    (accessToken, refreshToken, profile, done) => {
+      // GitHub 로그인 로직
+    }
+  )
+);
+
+// 전략 3: ID/PW 로컬 로그인
+passport.use(
+  new LocalStrategy((username, password, done) => {
+    // 로컬 로그인 로직
+  })
+);
+```
+
+인증이라는 **목적은 같지만**, Google로 하느냐 GitHub로 하느냐 로컬로 하느냐에 따라 **방법이 다르다**. 완벽한 Strategy 패턴이다.
+
+### 2. 압축 알고리즘
+
+```typescript
+interface CompressionStrategy {
+  compress(data: Buffer): Buffer;
+  decompress(data: Buffer): Buffer;
+  readonly name: string;
+}
+
+class GzipCompression implements CompressionStrategy {
+  name = "gzip";
+  compress(data: Buffer): Buffer {
+    /* gzip 압축 */
+    return data;
+  }
+  decompress(data: Buffer): Buffer {
+    /* gzip 해제 */
+    return data;
+  }
+}
+
+class BrotliCompression implements CompressionStrategy {
+  name = "brotli";
+  compress(data: Buffer): Buffer {
+    /* brotli 압축 */
+    return data;
+  }
+  decompress(data: Buffer): Buffer {
+    /* brotli 해제 */
+    return data;
+  }
+}
+
+// 파일 크기나 타입에 따라 전략 선택
+function getCompressionStrategy(fileSize: number): CompressionStrategy {
+  if (fileSize > 1024 * 1024) {
+    return new BrotliCompression(); // 큰 파일은 brotli (압축률 높음)
+  }
+  return new GzipCompression(); // 작은 파일은 gzip (속도 빠름)
+}
+```
+
+### 3. 가격 정책
+
+```typescript
+interface PricingStrategy {
+  calculate(basePrice: number): number;
+}
+
+class RegularPricing implements PricingStrategy {
+  calculate(basePrice: number) {
+    return basePrice;
+  }
+}
+
+class PremiumMemberPricing implements PricingStrategy {
+  calculate(basePrice: number) {
+    return basePrice * 0.8; // 20% 할인
+  }
+}
+
+class BlackFridayPricing implements PricingStrategy {
+  calculate(basePrice: number) {
+    return basePrice * 0.5; // 50% 할인
+  }
+}
+
+// 사용자 등급이나 이벤트에 따라 전략 교체
+class ProductService {
+  constructor(private pricing: PricingStrategy) {}
+
+  getPrice(basePrice: number): number {
+    return this.pricing.calculate(basePrice);
+  }
+}
+```
+
+---
+
+## 언제 Strategy 패턴을 써야 할까?
+
+- **같은 일을 하지만 방법이 여러 개**일 때 (결제, 인증, 정렬, 압축, 경로 탐색...)
+- **런타임에 알고리즘을 교체**해야 할 때
+- **if-else/switch 문이 알고리즘 선택을 위해 비대해지고 있을 때**
+- 알고리즘의 내부 구현을 클라이언트로부터 **숨기고 싶을 때**
+- 여러 클래스가 **행동만 다르고 나머지는 동일**할 때
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| **OCP 준수** — 새 전략 추가 시 기존 코드 수정 불필요 | 전략이 몇 개 안 되면 **오버엔지니어링**이 될 수 있다 |
+| **런타임 전략 교체** 가능 | 클라이언트가 **전략들의 차이를 알아야** 적절한 전략을 선택할 수 있다 |
+| 알고리즘 **독립적 테스트** 가능 | 함수형 언어에서는 그냥 **함수를 넘기면 되므로** 굳이 패턴을 의식할 필요 없다 |
+| 상속 대신 **구성(composition)** 활용 | 전략 수가 많아지면 **클래스가 늘어난다** |
+| if-else 체인 제거로 **코드 가독성 향상** | Context와 Strategy 간 **추가적인 통신 오버헤드** 가능 |
+
+---
+
+## 마무리
+
+Strategy 패턴은 결국 이 한 문장으로 요약된다.
+
+> **"변하는 것을 캡슐화하라."**
+
+if-else로 분기하는 코드가 보이면 한 번 의심해보자. "이거 Strategy로 뽑아낼 수 있지 않을까?" 특히 TypeScript에서는 인터페이스 하나 정의하고 함수를 넘기는 것만으로도 자연스럽게 이 패턴을 적용할 수 있다.
+
+![깔끔한 코드](https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif)
+
+사실 우리는 이미 Strategy 패턴을 쓰고 있다. `Array.sort(compareFn)`, `Array.filter(predicate)`, React의 렌더 프로퍼티... 이름만 몰랐을 뿐이다. 이제 이름을 알았으니, 의도적으로 더 잘 활용할 수 있을 것이다.
+
+---
+
+## Reference
+
+- [Refactoring Guru — Strategy Pattern](https://refactoring.guru/design-patterns/strategy)

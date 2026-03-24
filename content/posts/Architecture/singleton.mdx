@@ -1,0 +1,297 @@
+---
+title: "Singleton 패턴"
+description: "인스턴스를 딱 하나만 허용하는 Singleton 패턴의 장단점과 대안을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "creational", "architecture"]
+thumbnail: "/images/thumbnails/singleton.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 5
+---
+
+# 가장 유명하고, 가장 욕먹는 패턴
+
+디자인 패턴을 공부하면 가장 먼저 만나는 패턴이 Singleton이다.
+
+그리고 실무에서 가장 많이 "쓰지 마세요"라고 듣는 패턴도 Singleton이다.
+
+![사랑과 전쟁](https://media.giphy.com/media/32mC2kXYWCsg0/giphy.gif)
+
+도대체 왜 이렇게 호불호가 갈리는 걸까?
+
+직접 알아보자.
+
+---
+
+## Singleton이란?
+
+> 클래스의 인스턴스가 **딱 하나만** 존재하도록 보장하고, 그 인스턴스에 대한 **전역 접근점**을 제공하는 패턴
+
+두 가지를 동시에 해결한다.
+
+1. **인스턴스가 하나만 존재함을 보장** — `new`를 여러 번 호출해도 같은 인스턴스
+2. **어디서든 접근 가능** — 전역 접근점 제공
+
+DB 커넥션 풀을 생각해보면 이해하기 쉽다. 앱 전체에서 DB 커넥션 풀이 여러 개 생기면 리소스 낭비다. 하나만 있으면 된다.
+
+---
+
+## 코드로 보기
+
+### 기본 구현
+
+```typescript
+class Database {
+  private static instance: Database | null = null;
+
+  // 생성자를 private으로 → 외부에서 new 불가
+  private constructor(
+    private connectionString: string,
+  ) {
+    console.log("DB 연결 중...");
+  }
+
+  static getInstance(): Database {
+    if (!Database.instance) {
+      Database.instance = new Database("postgresql://localhost:5432/mydb");
+    }
+    return Database.instance;
+  }
+
+  query(sql: string) {
+    console.log(`쿼리 실행: ${sql}`);
+  }
+}
+```
+
+사용하면 이렇다.
+
+```typescript
+const db1 = Database.getInstance();
+const db2 = Database.getInstance();
+
+console.log(db1 === db2); // true — 같은 인스턴스!
+
+// 이건 안 된다
+// const db3 = new Database("..."); // Error: Constructor is private
+```
+
+`getInstance()`를 몇 번을 호출해도 **항상 같은 인스턴스**를 반환한다.
+
+---
+
+## 실무에서 보는 Singleton
+
+사실 우리가 쓰는 많은 것들이 이미 Singleton이다.
+
+### Next.js의 Prisma Client
+
+```typescript
+// lib/prisma.ts
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
+```
+
+Next.js 공식 문서에도 이렇게 쓰라고 나와있다. Hot Reload 때마다 `PrismaClient`가 새로 생기는 걸 방지하기 위함이다.
+
+### Logger
+
+```typescript
+class Logger {
+  private static instance: Logger;
+
+  private constructor() {}
+
+  static getInstance(): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
+    }
+    return Logger.instance;
+  }
+
+  log(message: string) {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${message}`);
+  }
+
+  error(message: string) {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] ERROR: ${message}`);
+  }
+}
+
+// 어디서든 같은 로거 사용
+Logger.getInstance().log("서버 시작");
+Logger.getInstance().error("뭔가 잘못됨");
+```
+
+### 설정 관리
+
+```typescript
+class AppConfig {
+  private static instance: AppConfig;
+  private config: Record<string, string> = {};
+
+  private constructor() {
+    // 환경 변수 로드 (한 번만)
+    this.config = {
+      API_URL: process.env.API_URL ?? "http://localhost:3000",
+      DB_HOST: process.env.DB_HOST ?? "localhost",
+      CACHE_TTL: process.env.CACHE_TTL ?? "3600",
+    };
+  }
+
+  static getInstance(): AppConfig {
+    if (!AppConfig.instance) {
+      AppConfig.instance = new AppConfig();
+    }
+    return AppConfig.instance;
+  }
+
+  get(key: string): string {
+    return this.config[key] ?? "";
+  }
+}
+```
+
+---
+
+## 그런데 왜 욕을 먹을까?
+
+Singleton이 비판받는 이유를 정리하면 다음과 같다.
+
+### 1. 숨겨진 의존성
+
+```typescript
+class UserService {
+  getUser(id: string) {
+    // Database가 숨어있다 — 함수 시그니처만 보면 모른다
+    const db = Database.getInstance();
+    return db.query(`SELECT * FROM users WHERE id = '${id}'`);
+  }
+}
+```
+
+`UserService`의 인터페이스만 보면 DB에 의존하는지 알 수 없다. 의존성이 숨어버린다.
+
+### 2. 테스트하기 어렵다
+
+```typescript
+// Singleton이면 테스트에서 Mock으로 교체하기 어렵다
+test("유저 조회", () => {
+  // Database.getInstance()가 진짜 DB에 연결된다...
+  // Mock으로 바꾸고 싶은데 방법이 없다
+  const service = new UserService();
+  service.getUser("123"); // 진짜 DB 쿼리가 실행됨 😱
+});
+```
+
+### 3. 전역 상태의 위험
+
+Singleton은 본질적으로 **전역 변수**다. 어디서든 접근하고 수정할 수 있다.
+
+```typescript
+// 파일 A에서
+AppConfig.getInstance().set("API_URL", "https://production.api.com");
+
+// 파일 B에서 (한참 뒤에)
+AppConfig.getInstance().set("API_URL", "http://localhost:3000");
+// 파일 A의 설정이 깨져버렸다!
+```
+
+![전역 상태의 비극](https://media.giphy.com/media/l0IylOPCNkiqOgMyA/giphy.gif)
+
+---
+
+## 더 나은 대안: 의존성 주입 (DI)
+
+Singleton의 문제를 해결하면서도 "인스턴스 하나"를 유지하는 방법이 있다.
+
+```typescript
+// Singleton 대신 의존성 주입
+class UserService {
+  // DB를 외부에서 받는다 — 의존성이 명시적
+  constructor(private db: Database) {}
+
+  getUser(id: string) {
+    return this.db.query(`SELECT * FROM users WHERE id = '${id}'`);
+  }
+}
+
+// 프로덕션에서는 진짜 DB
+const realDb = new Database("postgresql://...");
+const userService = new UserService(realDb);
+
+// 테스트에서는 Mock DB
+const mockDb = { query: jest.fn() } as unknown as Database;
+const testService = new UserService(mockDb); // 쉽게 교체 가능!
+```
+
+**인스턴스를 하나만 만드는 것**은 DI 컨테이너(NestJS의 `@Injectable()` 등)가 관리하면 된다.
+
+클래스 자체가 "나는 하나만 존재해야 해!"라고 주장할 필요 없다.
+
+---
+
+## 그래서 Singleton, 쓰면 안 되나?
+
+아니다. 적절한 상황이 있다.
+
+### 쓰면 좋은 경우
+
+- **리소스가 비싼 공유 자원**: DB 커넥션 풀, 스레드 풀
+- **설정 객체**: 읽기 전용 설정 (수정하지 않는다면 전역 상태 문제 없음)
+- **로거**: 앱 전체에서 같은 로거를 쓰는 것이 자연스러움
+- **캐시**: 앱 레벨 캐시 인스턴스
+
+### 쓰면 안 좋은 경우
+
+- **비즈니스 로직 클래스**: `UserService`, `OrderService` 등
+- **상태가 자주 변하는 객체**: 전역 상태 문제 발생
+- **테스트가 중요한 컴포넌트**: Mock 교체가 어려움
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| 인스턴스가 하나임을 보장 | 테스트하기 어렵다 |
+| 전역 접근점 제공 | 숨겨진 의존성 |
+| 리소스 절약 (한 번만 초기화) | SRP 위반 (인스턴스 관리 + 비즈니스 로직) |
+| 지연 초기화(Lazy) 가능 | 멀티스레드 환경에서 동기화 필요 |
+
+---
+
+## 정리하며
+
+Singleton은 **"인스턴스를 딱 하나만"** 보장하는 패턴이다.
+
+핵심을 한 줄로 요약하면,
+
+> **"이 세상에 나는 하나뿐이야"**
+
+간단하고 직관적이지만, 남용하면 테스트와 유지보수를 어렵게 만든다.
+
+내 생각에 현대 개발에서 Singleton을 직접 구현하는 일은 줄어들고 있다. NestJS 같은 프레임워크의 DI 컨테이너가 대신 관리해주기 때문이다.
+
+하지만 **"왜 Singleton이 문제가 되는지"** 를 이해하는 것은 여전히 중요하다. 전역 상태의 위험성, 숨겨진 의존성, 테스트 가능성 — 이런 개념들은 패턴을 넘어서 소프트웨어 설계 전반에 적용되기 때문이다.
+
+이것으로 **Creational 패턴** 5개를 모두 다뤘다. 다음 글부터는 **Structural 패턴**으로 넘어가서, 기존 클래스들을 조합하는 방법을 알아보겠다. 첫 번째는 **Adapter** 패턴이다.
+
+---
+
+# Reference
+
+[Refactoring Guru - Singleton](https://refactoring.guru/design-patterns/singleton)

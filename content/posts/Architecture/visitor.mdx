@@ -1,0 +1,441 @@
+---
+title: "Visitor 패턴"
+description: "객체 구조를 변경하지 않고 새로운 연산을 추가할 수 있는 Visitor 패턴을 알아봅니다."
+date: "2026-03-23"
+category: "Architecture"
+tags: ["design-pattern", "behavioral", "architecture"]
+thumbnail: "/images/thumbnails/visitor.png"
+series:
+  name: "Guru 디자인 패턴"
+  slug: "guru-design-patterns"
+  order: 22
+---
+
+# 세무 조사관이 가게에 오면 벌어지는 일
+
+세무 조사관을 떠올려보자.
+
+세무 조사관은 다양한 업종의 가게를 방문한다. 음식점에 가면 식자재 매입 내역을 확인하고, 병원에 가면 진료비 수납 기록을 살피고, 쇼핑몰에 가면 재고와 매출 장부를 비교한다.
+
+핵심은 — **가게 자체를 바꾸지 않는다는 것**이다. 음식점은 그대로 음식을 만들고, 병원은 그대로 환자를 본다. 세무 조사관이라는 **외부 방문자**가 각 업종에 맞는 규칙을 적용할 뿐이다.
+
+![세무 조사](https://media.giphy.com/media/3o7btNa0RUYa5E7yz6/giphy.gif)
+
+만약 새로운 종류의 조사(예: 환경 감사)가 필요하다면? 가게를 리모델링할 필요 없이, **새로운 조사관을 보내면 된다**.
+
+이것이 Visitor 패턴의 핵심 아이디어다.
+
+---
+
+## Visitor란?
+
+> 객체 구조의 요소들에 대해 수행할 **연산을 별도의 객체(Visitor)로 분리**하여, 구조를 변경하지 않고 새로운 연산을 추가할 수 있게 하는 패턴
+
+GoF 23개 패턴 중 **가장 복잡한 패턴**이라고 불린다. 실제로 필요한 상황이 드물지만, 필요할 때는 대체 불가능한 강력한 패턴이다.
+
+핵심 메커니즘은 **Double Dispatch(이중 디스패치)**다.
+
+```
+1단계: 클라이언트가 element.accept(visitor)를 호출
+2단계: element 내부에서 visitor.visitConcreteElement(this)를 호출
+```
+
+왜 이렇게 두 번 호출할까? JavaScript/TypeScript에는 메서드 오버로딩이 없기 때문에, **"어떤 요소에 어떤 연산을 적용할지"를 런타임에 정확히 결정**하기 위해서다. 첫 번째 호출로 요소의 타입이 결정되고, 두 번째 호출로 해당 타입에 맞는 연산이 실행된다.
+
+---
+
+## 코드로 보기
+
+### AST(Abstract Syntax Tree) 노드와 방문자
+
+컴파일러나 트랜스파일러에서 AST를 다루는 상황을 생각해보자. AST 노드는 고정되어 있지만, 노드에 대한 연산(타입 체크, 코드 생성, 포맷팅 등)은 계속 추가된다.
+
+```typescript
+// Visitor 인터페이스
+interface ASTVisitor<T> {
+  visitNumberLiteral(node: NumberLiteral): T;
+  visitStringLiteral(node: StringLiteral): T;
+  visitBinaryExpression(node: BinaryExpression): T;
+  visitVariable(node: Variable): T;
+}
+
+// Element 인터페이스
+interface ASTNode {
+  accept<T>(visitor: ASTVisitor<T>): T;
+}
+```
+
+### AST 노드 구현
+
+```typescript
+class NumberLiteral implements ASTNode {
+  constructor(public value: number) {}
+
+  accept<T>(visitor: ASTVisitor<T>): T {
+    return visitor.visitNumberLiteral(this); // 핵심! 자신의 타입을 알려준다
+  }
+}
+
+class StringLiteral implements ASTNode {
+  constructor(public value: string) {}
+
+  accept<T>(visitor: ASTVisitor<T>): T {
+    return visitor.visitStringLiteral(this);
+  }
+}
+
+class BinaryExpression implements ASTNode {
+  constructor(
+    public left: ASTNode,
+    public operator: "+" | "-" | "*" | "/",
+    public right: ASTNode
+  ) {}
+
+  accept<T>(visitor: ASTVisitor<T>): T {
+    return visitor.visitBinaryExpression(this);
+  }
+}
+
+class Variable implements ASTNode {
+  constructor(public name: string) {}
+
+  accept<T>(visitor: ASTVisitor<T>): T {
+    return visitor.visitVariable(this);
+  }
+}
+```
+
+노드 클래스들은 매우 단순하다. `accept`만 구현하고, **구체적인 로직은 전혀 없다**. 이제 다양한 연산을 Visitor로 구현해보자.
+
+### Visitor 1: 타입 체커
+
+```typescript
+type ASTType = "number" | "string" | "error";
+
+class TypeChecker implements ASTVisitor<ASTType> {
+  private variables = new Map<string, ASTType>();
+
+  constructor(vars?: Record<string, ASTType>) {
+    if (vars) {
+      Object.entries(vars).forEach(([k, v]) => this.variables.set(k, v));
+    }
+  }
+
+  visitNumberLiteral(_node: NumberLiteral): ASTType {
+    return "number";
+  }
+
+  visitStringLiteral(_node: StringLiteral): ASTType {
+    return "string";
+  }
+
+  visitBinaryExpression(node: BinaryExpression): ASTType {
+    const leftType = node.left.accept(this);
+    const rightType = node.right.accept(this);
+
+    // + 연산자는 string끼리도 OK
+    if (node.operator === "+" && leftType === "string" && rightType === "string") {
+      return "string";
+    }
+
+    // 나머지 연산은 number끼리만
+    if (leftType === "number" && rightType === "number") {
+      return "number";
+    }
+
+    console.error(`타입 에러: ${leftType} ${node.operator} ${rightType}`);
+    return "error";
+  }
+
+  visitVariable(node: Variable): ASTType {
+    return this.variables.get(node.name) ?? "error";
+  }
+}
+```
+
+### Visitor 2: 코드 생성기
+
+```typescript
+class CodeGenerator implements ASTVisitor<string> {
+  visitNumberLiteral(node: NumberLiteral): string {
+    return String(node.value);
+  }
+
+  visitStringLiteral(node: StringLiteral): string {
+    return `"${node.value}"`;
+  }
+
+  visitBinaryExpression(node: BinaryExpression): string {
+    const left = node.left.accept(this);
+    const right = node.right.accept(this);
+    return `(${left} ${node.operator} ${right})`;
+  }
+
+  visitVariable(node: Variable): string {
+    return node.name;
+  }
+}
+```
+
+### Visitor 3: Pretty Printer
+
+```typescript
+class PrettyPrinter implements ASTVisitor<string> {
+  private indent = 0;
+
+  private pad(): string {
+    return "  ".repeat(this.indent);
+  }
+
+  visitNumberLiteral(node: NumberLiteral): string {
+    return `${this.pad()}Number(${node.value})`;
+  }
+
+  visitStringLiteral(node: StringLiteral): string {
+    return `${this.pad()}String("${node.value}")`;
+  }
+
+  visitBinaryExpression(node: BinaryExpression): string {
+    const header = `${this.pad()}BinaryExpr(${node.operator})`;
+    this.indent++;
+    const left = node.left.accept(this);
+    const right = node.right.accept(this);
+    this.indent--;
+    return `${header}\n${left}\n${right}`;
+  }
+
+  visitVariable(node: Variable): string {
+    return `${this.pad()}Var(${node.name})`;
+  }
+}
+```
+
+### 사용해보기
+
+```typescript
+// AST: (x + 10) * 2
+const ast = new BinaryExpression(
+  new BinaryExpression(
+    new Variable("x"),
+    "+",
+    new NumberLiteral(10)
+  ),
+  "*",
+  new NumberLiteral(2)
+);
+
+// 같은 AST에 다른 Visitor를 적용
+const typeChecker = new TypeChecker({ x: "number" });
+console.log(ast.accept(typeChecker));
+// "number" ✅
+
+const codeGen = new CodeGenerator();
+console.log(ast.accept(codeGen));
+// "((x + 10) * 2)"
+
+const printer = new PrettyPrinter();
+console.log(ast.accept(printer));
+// BinaryExpr(*)
+//   BinaryExpr(+)
+//     Var(x)
+//     Number(10)
+//   Number(2)
+```
+
+**AST 노드 클래스는 단 한 줄도 수정하지 않았다.** 새로운 연산이 필요하면 새 Visitor를 만들면 끝이다.
+
+![완벽한 분리](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
+
+---
+
+## 현실에서 만나는 Visitor 패턴
+
+### Babel — AST Transform의 대명사
+
+Babel 플러그인을 만들어본 적 있다면, 이미 Visitor 패턴을 쓴 것이다.
+
+```typescript
+// Babel 플러그인 = Visitor 패턴
+module.exports = function myPlugin() {
+  return {
+    visitor: {
+      // 각 노드 타입에 대한 visit 메서드
+      Identifier(path) {
+        if (path.node.name === "oldName") {
+          path.node.name = "newName";
+        }
+      },
+      StringLiteral(path) {
+        // 문자열 리터럴 변환
+        path.node.value = path.node.value.toUpperCase();
+      },
+      BinaryExpression(path) {
+        // 상수 폴딩: 1 + 2 → 3
+        if (
+          path.node.left.type === "NumericLiteral" &&
+          path.node.right.type === "NumericLiteral"
+        ) {
+          const result = eval(
+            `${path.node.left.value} ${path.node.operator} ${path.node.right.value}`
+          );
+          path.replaceWith({ type: "NumericLiteral", value: result });
+        }
+      },
+    },
+  };
+};
+```
+
+Babel의 AST 노드 타입은 고정되어 있고, 플러그인(Visitor)만 추가하면 새로운 변환을 만들 수 있다. 전형적인 Visitor 패턴이다.
+
+### ESLint — 규칙도 Visitor
+
+```typescript
+// ESLint 커스텀 룰 = Visitor 패턴
+module.exports = {
+  meta: { type: "suggestion", docs: { description: "console.log 금지" } },
+  create(context) {
+    return {
+      // Visitor!
+      CallExpression(node) {
+        if (
+          node.callee.type === "MemberExpression" &&
+          node.callee.object.name === "console"
+        ) {
+          context.report({ node, message: "console 사용 금지" });
+        }
+      },
+    };
+  },
+};
+```
+
+### 문서 내보내기 — HTML, PDF, Markdown
+
+문서 구조를 변경하지 않고 다양한 포맷으로 내보내는 것도 Visitor 패턴이다.
+
+```typescript
+interface DocumentVisitor {
+  visitHeading(node: Heading): string;
+  visitParagraph(node: Paragraph): string;
+  visitCodeBlock(node: CodeBlock): string;
+  visitImage(node: ImageNode): string;
+}
+
+class HtmlExporter implements DocumentVisitor {
+  visitHeading(node: Heading): string {
+    return `<h${node.level}>${node.text}</h${node.level}>`;
+  }
+  visitParagraph(node: Paragraph): string {
+    return `<p>${node.text}</p>`;
+  }
+  visitCodeBlock(node: CodeBlock): string {
+    return `<pre><code class="${node.language}">${node.code}</code></pre>`;
+  }
+  visitImage(node: ImageNode): string {
+    return `<img src="${node.src}" alt="${node.alt}" />`;
+  }
+}
+
+class MarkdownExporter implements DocumentVisitor {
+  visitHeading(node: Heading): string {
+    return `${"#".repeat(node.level)} ${node.text}`;
+  }
+  visitParagraph(node: Paragraph): string {
+    return node.text;
+  }
+  visitCodeBlock(node: CodeBlock): string {
+    return `\`\`\`${node.language}\n${node.code}\n\`\`\``;
+  }
+  visitImage(node: ImageNode): string {
+    return `![${node.alt}](${node.src})`;
+  }
+}
+
+// 같은 문서, 다른 출력
+const doc: DocumentNode[] = [heading, paragraph, codeBlock];
+
+const html = doc.map((node) => node.accept(new HtmlExporter())).join("\n");
+const md = doc.map((node) => node.accept(new MarkdownExporter())).join("\n");
+```
+
+---
+
+## 언제 사용하면 좋을까?
+
+1. **객체 구조는 안정적인데, 연산이 자주 추가될 때**
+   - AST 노드 타입은 거의 바뀌지 않지만 플러그인은 계속 늘어난다
+
+2. **관련 없는 연산들이 클래스를 오염시킬 때**
+   - 타입 체크, 코드 생성, 최적화를 전부 노드 클래스에 넣으면 수백 줄짜리 God Object가 된다
+
+3. **복잡한 객체 구조를 여러 방식으로 순회해야 할 때**
+   - DOM, AST, 문서 트리 같은 계층 구조
+
+단, **객체 타입이 자주 추가되는 경우에는 사용하면 안 된다.** 새 노드 타입을 추가할 때마다 모든 Visitor를 수정해야 하기 때문이다. 이것이 Visitor 패턴의 가장 큰 트레이드오프다.
+
+---
+
+## 장단점
+
+| 장점 | 단점 |
+|------|------|
+| OCP — 구조 변경 없이 새 연산 추가 | 새 요소 타입 추가 시 모든 Visitor 수정 필요 |
+| SRP — 관련 연산이 하나의 클래스에 모임 | Double Dispatch 개념이 직관적이지 않음 |
+| Visitor가 상태를 가질 수 있어 순회 중 정보 축적 가능 | GoF 패턴 중 가장 높은 복잡도 |
+| 같은 구조에 다양한 연산을 깔끔하게 적용 | 요소의 private 멤버에 접근할 수 없음 |
+
+---
+
+## 22개 패턴을 마치며
+
+이 글을 마지막으로, **Refactoring Guru 디자인 패턴 시리즈 22편이 모두 끝났다.**
+
+![축하](https://media.giphy.com/media/g9582DNuQppxC/giphy.gif)
+
+전체 여정을 간단히 돌아보자.
+
+### 생성 패턴 (Creational) — 객체를 어떻게 만들 것인가
+
+- **Factory Method** — 서브클래스가 생성할 객체를 결정
+- **Abstract Factory** — 관련 객체 가족을 통째로 생성
+- **Builder** — 복잡한 객체를 단계별로 조립
+- **Prototype** — 기존 객체를 복제하여 생성
+- **Singleton** — 인스턴스를 하나만 보장
+
+### 구조 패턴 (Structural) — 객체를 어떻게 조합할 것인가
+
+- **Adapter** — 호환되지 않는 인터페이스를 연결
+- **Bridge** — 추상화와 구현을 분리
+- **Composite** — 트리 구조로 개별/복합 객체를 동일하게 처리
+- **Decorator** — 기존 객체에 동적으로 책임 추가
+- **Facade** — 복잡한 서브시스템에 단순한 인터페이스 제공
+- **Flyweight** — 공유로 메모리를 절약
+- **Proxy** — 객체에 대한 접근을 제어
+
+### 행동 패턴 (Behavioral) — 객체가 어떻게 협력할 것인가
+
+- **Chain of Responsibility** — 요청을 핸들러 체인으로 전달
+- **Command** — 요청을 객체로 캡슐화
+- **Iterator** — 컬렉션 요소를 순차 접근
+- **Mediator** — 객체 간 통신을 중재자로 집중
+- **Memento** — 객체 상태를 저장하고 복원
+- **Observer** — 상태 변화를 구독자에게 알림
+- **State** — 상태에 따라 행동을 변경
+- **Strategy** — 알고리즘을 교체 가능하게 캡슐화
+- **Template Method** — 알고리즘 골격을 정의하고 세부 단계를 서브클래스에 위임
+- **Visitor** — 구조 변경 없이 새 연산을 추가
+
+22개의 패턴을 관통하는 핵심은 결국 하나다.
+
+> **변하는 것과 변하지 않는 것을 분리하라.**
+
+패턴을 외우는 것보다 중요한 것은, **어떤 상황에서 어떤 분리가 필요한지 감을 잡는 것**이다. 패턴은 도구일 뿐이고, 문제를 정확히 진단하는 눈이 더 중요하다.
+
+이 시리즈가 그 눈을 기르는 데 조금이나마 도움이 되었으면 좋겠다.
+
+---
+
+# Reference
+
+[Refactoring Guru - Visitor](https://refactoring.guru/design-patterns/visitor)
