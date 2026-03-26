@@ -1,0 +1,151 @@
+---
+title: "Chrome Extension 만들기 - 자동 번역 기능"
+description: "영어 자막 강의를 듣기 위해 실시간 자막 번역 Chrome Extension을 직접 만든 과정. manifest.json부터 서비스 워커, CORS 우회, Docker LibreTranslate까지."
+date: "2025-08-15"
+category: "Frontend"
+tags: ["chrome-extension", "javascript", "docker", "번역"]
+thumbnail: "/images/thumbnails/chrome-extension-translator.png"
+---
+
+# 문제 상황
+
+Udemy에서 강의를 야심차게 구매했지만, 한글자막이 없는 강의였다.
+잘 모르는 분야를 공부하는 것이기에 이미 속도가 느릴텐데 영어로 학습하면 학습 속도가 현저히 느려질까봐 걱정되었다.
+
+유튜브는 자동 번역이라도 있던데, 혹시 크롬의 이런 extension이 있지 않을까 싶어서 찾아보았다.
+"Substitial"을 찾았는데 이것은 자막 파일이 별개로 필요했다.
+
+내가 원했던 기능은 영상 속 자막을 탐지하고 즉시 한글로 번역해주는 기능이다.
+나는 개발자가 아닌가? 한 번 만들어보기로 했다.
+
+# 꼭 Chrome Extension이어야 할까?
+
+나는 가장 먼저 Chrome의 extension이 아니더라도 원하는 기능을 만들 수 있을지 조사해보았다.
+
+1. 데스크톱 앱 + 화면 캡쳐 + OCR
+   - 애초에 데스크톱 앱까지 제작할 프로젝트가 아닌 것 같고, 브라우저에서 자막을 추출할 수 있는데 굳이 OCR을 사용할 필요도 없다고 생각한다.
+2. Tampermonkey
+   - Tampermonkey extension을 추가해주고, 원하는 스크립트만 넣어주면 된다.
+   - chrome extension을 내가 만들고 배포해야하는 과정이 줄어들기 때문에, 내 학습 용도로만 사용하기에는 Tampermonkey가 더 적합하다고 생각했다.
+
+### Tampermonkey 사용 후기
+
+자막을 추출하는 스크립트를 만들어보았고 추출된 자막을 Console 창에 출력해보았다.
+잘 작동하였지만, 자막의 탐지를 변화하지 못하는 것도 있었고 생각보다 반응성이 좋지 않았다.
+Tampermonkey는 자막 탐지만을 위한 extension이 아니기 때문에 좀 더 무거워서 그런 것 같다.
+
+그래서 그냥 나의 chrome extension을 만들려고 한다.
+
+# Chrome Extension 만들기
+
+구글에서 만든 기본적인 가이드를 참고하였다.
+extension은 기본적으로 javascript 코드랑 별 다를게 없었다.
+다만, extension의 설정 파일인 `manifest.json`이 꼭 필요했다.
+
+### manifest.json
+
+```javascript
+{
+  "manifest_version": 3,
+  "name": "실시간 자막 번역기",
+  "version": "1.0",
+  "description": "영어 자막을 실시간으로 한국어로 번역하여 표시합니다.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "자막 번역기"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["translator.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+```
+
+- `manifest_version`, `name`, `version`은 필수적인 기본 메타데이터
+- `permissions`의 `activeTab`은 사용자가 포커스가 지정된 탭에서 확장 프로그램을 실행하도록 의도적으로 선택할 수 있음. `storage`는 서비스 워커 세션 간에 상태를 유지. `scripting`은 웹페이지에 코드를 주입할 수 있도록 하는 권한
+- `host_permissions`는 외부 도메인으로 네트워크 요청 권한 부여
+- `content_scripts`는 페이지의 콘텐츠를 읽고 수정하기 위한 스크립트
+- `background`에는 service worker를 사용하여 백그라운드에서 브라우저 이벤트를 모니터링
+- `action`은 브라우저 툴바에 표시되는 확장자 아이콘과 관련된 설정
+
+# 어떻게 구현하였나?
+
+여러 파일 중 가장 중요하게 봐야할 파일은 `content.js`와 `background.js`이다.
+
+- `content.js`: DOM의 변경을 탐지하는 코드
+- `background.js`: 세팅 및 외부 api를 이용하여 번역을 해오는 코드
+
+**`content.js`에서 번역 api를 불러오면 안될까?**
+
+- 브라우저의 content script(웹페이지 컨텍스트)에서 외부 API로 직접 fetch 요청을 보내면, Google 서버가 Access-Control-Allow-Origin 헤더를 보내지 않기 때문에 브라우저가 요청을 차단한다. 즉, CORS 에러가 발생한다.
+- 반면 background.js는 브라우저 확장자 권한으로 동작하므로 CORS 제한이 없다.
+
+번역 api 조사 결과:
+
+1. google cloud translate api
+2. libreTranslate
+3. MyMemory
+
+Google과 libreTranslate는 유료 서비스였고 MyMemory api를 사용했으나 Time Limit에 걸렸다.
+→ 번역 api를 만드는 것이 아닌 Docker를 활용하여 내 로컬 서버에서 번역 서버를 실행시키도록 했다.
+
+# 디버깅 에러 모음
+
+- `Service Worker registration failed. Status code: 15` → background.js에서 오류가 나서 Service Worker를 불러오지 못해 생긴 경고
+- `Uncaught TypeError: Cannot read properties of undefined (reading 'create')` → contextMenus를 사용하는데 권한이 없어서 생긴 에러. manifest.json에 `"permissions": ["contextMenus"]`를 추가하여 해결
+- `Error: Extension context invalidated.` → extension을 실행하고 디버깅을 위해 탭을 바꾸면 서비스워커가 자동으로 꺼지면서 발생
+
+# 기술적 챌린지
+
+### 서비스워커 유지하기
+
+서비스 워커는 이벤트가 없으면 자동으로 종료된다. 아래와 같은 코드를 추가하여 해결:
+
+```javascript
+chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "keepAlive") {
+    // keep-alive ping
+  }
+});
+```
+
+1분마다 주기적으로 알람을 주는 이벤트를 생성해주었다.
+서비스워커는 결국 1분이라는 타이머를 계산하고 있는 것이다.
+
+### 번역 API의 한계
+
+번역 API를 이용하면 결국 하루에 제한이 걸려있었다. 그렇다고 유료 결제를 하고 싶지는 않아서 자체 LibreTranslate를 Docker로 내 로컬로 실행하는 방법을 알게 되었다.
+
+```bash
+docker run -d --name libretranslate -p 5000:5000 libretranslate/libretranslate --load-only en,ko
+```
+
+### 자막 삽입
+
+처음에는 번역된 텍스트를 원래 자막 속에 새로운 div로 감싸서 추가해주었다.
+그러나 이 방식 때문에 번역 텍스트가 추가 되면 다음 자막은 observer가 변화를 탐지 못했다.
+원본 자막의 div에 영향을 주기 때문이라고 생각을 했고, 번역된 텍스트를 원문의 자식 요소에 추가 하던 방식을 **형제 요소에 추가**하여 해결하였다.
+
+# 정리하며,
+
+결과는 매우 흡족했다.
+사실 한 문장 한 문장 그대로 번역을 시키는 것이기에 문맥상 이어지지 않는 말도 있었지만, 이런 부분까지 고려해서 만들기에는 시간적으로 과투자가 될 것 같다.
+어쨌든 지금 이 정도도 내가 영어 강의를 듣는 데에는 어려움이 없어서 만족했고
+무엇보다 내가 겪은 어려움을 기술로 해결하여 뿌듯했다.
+또한 Chrome Extension을 만들기 전에 다른 방법으로 이 문제를 해결할 수 있지 않을까 연구해보며 답을 찾아가는 과정이 개발자스러웠던 것 같다.

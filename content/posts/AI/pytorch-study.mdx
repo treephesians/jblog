@@ -1,0 +1,183 @@
+---
+title: "PyTorch 공부하기"
+description: "네이버 부스트캠프 AI 강의를 들으며 정리한 PyTorch 핵심 개념. Tensor, AutoGrad, Dataset, DataLoader, Transfer Learning까지."
+date: "2025-09-02"
+category: "AI"
+tags: ["pytorch", "deep-learning", "ai", "python"]
+thumbnail: "/images/thumbnails/pytorch-study.avif"
+---
+
+네이버 부스트캠프에서 AI 관련된 좋은 강의가 있어 듣게 되었다.
+
+# Introduction to Pytorch
+
+> PyTorch는 TensorFlow와 함께 가장 대표적인 딥러닝 프레임워크로 대부분의 연구에서 사용되고 있습니다.
+
+### Why Pytorch?
+
+- Define by Run
+- 즉시 확인 가능 → pythonic code
+- GPU support, Good API and community
+- AutoGrad 지원
+
+# Pytorch Basis
+
+### Tensor
+
+- 다차원 Arrays를 표현하는 pytorch 클래스 (numpy의 ndarray랑 같다고 생각하면 된다)
+- 기본적으로 tensor가 가질 수 있는 data 타입은 numpy와 동일 (단, GPU 사용 가능 여부만 다름)
+- pytorch의 tensor는 GPU에 올려서 사용 가능
+- tensor의 shape을 변환하는 reshape말고 view를 사용하자 (view는 기존 메모리 주소를 불러오지만, reshape은 새로운 메모리에 할당)
+- 내적곱 dot과 mm 중에서는 mm을 쓰자 (dot은 벡터의 곱에 좋고, mm과 matmul은 broadcasting 지원의 차이)
+- torch.nn.functional 모듈을 통해 다양한 수식 변화 지원
+
+### AutoGrad
+
+PyTorch의 핵심은 자동 미분의 지원 → backward 함수 사용
+
+# PyTorch 프로젝트 구조 이해하기
+
+주로 실행, 데이터, 모델, 설정, 지표, 로깅, 유틸리티 등 다양한 모듈들을 분리하여 템플릿화 한다.
+
+```bash
+pytorch-template/
+│
+├── train.py - main script to start training
+├── test.py - evaluation of trained model
+│
+├── config.json - holds configuration for training
+├── parse_config.py - class to handle config file and cli options
+│
+├── new_project.py - initialize new project with template files
+│
+├── base/ - abstract base classes
+│   ├── base_data_loader.py
+│   ├── base_model.py
+│   └── base_trainer.py
+│
+├── data_loader/ - anything about data loading goes here
+│   └── data_loaders.py
+│
+├── data/ - default directory for storing input data
+│
+├── model/ - models, losses, and metrics
+│   ├── model.py
+│   ├── metric.py
+│   └── loss.py
+│
+├── saved/
+│   ├── models/ - trained models are saved here
+│   └── log/ - default logdir for tensorboard and logging output
+│
+├── trainer/ - trainers
+│   └── trainer.py
+│
+├── logger/ - module for tensorboard visualization and logging
+│   ├── visualization.py
+│   ├── logger.py
+│   └── logger_config.json
+│
+└── utils/ - small utility functions
+    ├── util.py
+    └── ...
+```
+
+| 파라미터 | 모델이 학습을 통해 자동으로 찾는 값 (예: 가중치, 편향) |
+| 하이퍼파라미터 | 학습 전에 사람이 직접 지정하는 값 (예: 학습률, 에폭 수 등) |
+
+# Autograd & Optimizer
+
+### torch.nn.Module
+
+- 딥러닝을 구성하는 Layer의 base class
+- Input, Output, Forward, Backward(AutoGrad가 다 해줌) 정의
+- 학습의 대상이 되는 parameter(tensor) 정의
+
+다음과 같은 기본적인 과정을 꼭 거친다.
+
+```python
+for inputs, labels in dataloader:
+    optimizer.zero_grad()
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    loss.backward()
+    optimizer.step()
+```
+
+### Epoch vs Batch
+
+| 개념       | 의미                                                 | 예시                                           |
+| ---------- | ---------------------------------------------------- | ---------------------------------------------- |
+| Epoch      | 전체 학습 데이터셋을 모델이 한 번 모두 학습하는 과정 | 데이터가 1,000개고 10 epoch이면 총 10번 반복   |
+| Batch      | 학습 데이터를 일부로 나눈 묶음 (미니배치)            | 한 번에 100개씩 학습시키면 한 epoch에 10 batch |
+| Batch Size | 한 번 학습할 때 사용할 데이터의 수                   | 보통 16, 32, 64, 128 등                        |
+
+### 왜 나누어서 학습할까?
+
+- 데이터가 너무 크면 한 번에 학습하기 어려움 (메모리 부족)
+- 배치 단위로 학습하면 계산량이 작고 자주 업데이트 가능 → 학습이 빠르고 일반화에도 좋음
+
+# PyTorch Dataset & DataLoader
+
+```python
+class CustomDataset(Dataset):
+    def __init__(self, text, labels):
+        self.labels = labels
+        self.data = text
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        label = self.labels[idx]
+        text = self.data[idx]
+        sample = {"Text": text, "Class": label}
+        return sample
+```
+
+```python
+text = ['Happy', 'Amazing', 'Sad', 'Unhapy', 'Glum']
+labels = ['Positive', 'Positive', 'Negative', 'Negative', 'Negative']
+MyDataset = CustomDataset(text, labels)
+```
+
+```python
+MyDataLoader = DataLoader(MyDataset, batch_size=3, shuffle=True)
+for dataset in MyDataLoader:
+    print(dataset)
+```
+
+DataLoader에서 `sampler`는 데이터를 어떤 순서로 불러올지 결정하는 역할이다. `shuffle`과는 함께 사용할 수 없다.
+
+| Sampler 종류          | 설명                            | 사용하면 좋은 경우                         |
+| --------------------- | ------------------------------- | ------------------------------------------ |
+| SequentialSampler     | 순차적으로 데이터 인덱스 리턴   | 평가/테스트 시 순서를 유지해야 할 때       |
+| RandomSampler         | 무작위로 인덱스를 추출          | 학습 시, overfitting 방지를 위해 셔플      |
+| SubsetRandomSampler   | 특정 인덱스 집합 중 무작위 추출 | validation set 또는 cross-validation split |
+| WeightedRandomSampler | 각 샘플마다 선택 확률을 달리함  | 클래스 불균형 문제 해결에 효과적           |
+| BatchSampler          | 배치 단위로 샘플링              | 커스텀 배치 로직이 필요한 경우             |
+
+# 모델 불러오기
+
+요즘에는 백본이라는 기본적으로 학습된 모델이 있고, 이것을 우리 데이터에 맞춰 파인튜닝하는 방법이 대세다.
+`model.save()` 로 학습의 결과를 저장할 수 있다. 모델을 불러올 때는 `load_state_dict()`를 사용한다.
+
+### Checkpoints
+
+- 학습의 중간 결과를 저장하여 최선의 결과를 선택한다.
+- earlystopping 기법 사용시 이전 학습의 결과물을 저장한다.
+- loss와 metric 값을 지속적으로 확인 저장한다.
+
+### Transfer learning
+
+- 다른 데이터셋으로 만든 모델을 현재 데이터에 적용
+- 일반적으로 대용량 데이터셋으로 만들어진 모델의 성능이 향상된다.
+- 현재의 DL에서는 가장 일반적인 학습 기법이다.
+- TorchVision은 다양한 기본 모델을 제공한다.
+- NLP는 HuggingFace가 사실상 표준이다.
+
+### Freezing
+
+- pretrained model을 활용시 모델의 일부분을 frozen 시킨다.
+- Frozen되면 Back-propagation 과정에서 파라미터의 weight들이 바뀌지 않는다.
+- `requires_grad = False` 로 frozen을 시킬 수 있다.

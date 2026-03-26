@@ -1,0 +1,96 @@
+---
+title: "라이브러리의 라이브러리를 바꾸기?!"
+description: "notion-client가 사용하는 ky 라이브러리가 Next.js 15 환경에서 무한 대기 버그를 일으켰다. 포크 없이 webpack alias로 내부 의존성을 ofetch로 교체한 방법."
+date: "2025-10-01"
+category: "Frontend"
+tags: ["nextjs", "webpack", "troubleshooting", "notion"]
+thumbnail: "/images/thumbnails/library-dependency-swap.jpeg"
+---
+
+# 문제 상황
+
+내가 노션 블로그를 만들면서 사용한 notion-client 라이브러리에서,
+데이터를 fetch 하는 라이브러리인 ky가 Next 15 환경에서 네이티브 fetch 조합과 충돌하여 요청이 무한 대기 상태에 빠지는 문제가 생겼다.
+이를 해결하려면 외부 라이브러리가 수정이 되어야 한다.
+그렇다고 라이브러리 이슈가 해결되기까지 기다리기만 할 수 없었다.
+
+# 어떻게 해결했는가?
+
+나는 notion-client 가 사용하는 ky 라이브러리를 ofetch 라이브러리로 바꾸어 해결했다.
+간단히 말하면 번들 단계에서 모듈 해석을 갈아탔다.
+
+notion-client는 내부에서 `import ky from 'ky'`를 사용한다.
+next.config.ts의 webpack alias로 ky → src/lib/ky-shim.ts로 매핑하였다.
+
+### next.config.ts
+
+```javascript
+const nextConfig: NextConfig = {
+  webpack: (config) => {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      ky: require("path").resolve(__dirname, "src/lib/ky-shim.ts"),
+    };
+    return config;
+  },
+};
+```
+
+### ky-shim.ts
+
+```typescript
+import { ofetch } from "ofetch";
+
+type JsonValue = unknown;
+
+interface KyResponse<T = JsonValue> {
+  json: () => Promise<T>;
+}
+
+interface KyOptions {
+  method?: "POST" | "GET";
+  headers?: Record<string, string>;
+  body?: unknown;
+  mode?: RequestMode | "no-cors";
+  json?: unknown;
+  searchParams?: Record<string, string | number | boolean | null | undefined>;
+  timeout?: number | { request: number };
+}
+
+const ky = {
+  post<T = JsonValue>(url: string, options: KyOptions = {}): KyResponse<T> {
+    const { headers, body, mode, json, searchParams, timeout } = options;
+    const req = ofetch<T>(url, {
+      method: "POST",
+      headers,
+      body: (json ?? body) as
+        | BodyInit
+        | Record<string, unknown>
+        | null
+        | undefined,
+      params: searchParams as
+        | Record<string, string | number | boolean | null | undefined>
+        | undefined,
+      timeout: typeof timeout === "number" ? timeout : timeout?.request,
+      mode: (mode as RequestMode) || undefined,
+    });
+    return {
+      json: () => req,
+    };
+  },
+};
+
+export default ky;
+```
+
+notion-client가 ky를 임포트하면 실제로는 우리 ky-shim이 로드된다.
+외부 라이브러리 코드는 고치지 않았고, "의존성 주입"처럼 경로만 바꾼 것이다.
+
+# 정리하며,
+
+- 포크 없이 특정 하위 의존성을 교체해 런타임 충돌·버그를 우회할 수 있다.
+- 문제 라이브러리를 직접 고치지 않고 대체 모듈로 최소 표면만 호환 구현할 수 있다.
+
+외부 라이브러리라도 이렇게 내가 원하는대로 바꿔서 적용할 수 있다는 것을 새롭게 알게 되었고,
+활용 방법이 무궁무진할 것 같다!

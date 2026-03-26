@@ -1,0 +1,231 @@
+---
+title: "FastAPI로 API 만들기"
+description: "Python 백엔드를 처음 만들어보며 FastAPI, PostgreSQL, Cron Job 설계까지. 노션 데이터 동기화 서버 개발기."
+date: "2025-09-10"
+category: "Backend"
+tags: ["fastapi", "python", "postgresql", "backend", "api"]
+thumbnail: "/images/thumbnails/fastapi-getting-started.png"
+---
+
+# 들어가며,
+
+내 노션 블로그에서 여러 이슈들로 인해,
+노션 데이터베이스에 있는 데이터들을 내 DB에 주기적으로 옮기는 Cron job을 만들고자 한다.
+
+가장 먼저 생각한 것은, "어떻게 배포할 것인가" 였다.
+크게 다음과 같은 방법을 생각해보았다.
+
+### 클라우드 서버 (AWS EC2, GCP VM, DigitalOcean 등)
+
+- 똑같이 cron job 설정
+- 장점: 안정적, 확장성
+- 단점: 서버비용 발생
+
+### Serverless
+
+cron job을 직접 안 돌리고, 클라우드 서비스에서 스케줄링을 제공해줍니다:
+
+- GitHub Actions → schedule 트리거로 정해진 시간마다 실행
+- AWS Lambda + CloudWatch EventBridge → 함수만 배포하고 주기 실행
+- Google Cloud Functions + Scheduler
+- Vercel / Netlify Cron Jobs → 간단한 주기성 작업 배포 가능
+
+사실 Serverless 방법이 더 매력적으로 보인다. → 말 그대로 서버가 필요없고, 비용도 안들기 때문에
+단순 cron job은 serverless 방법으로 충분히 구현이 가능할 것이다.
+하지만, 요즘 Backend 분야도 궁금해져서 서버를 배포해보고자 한다.
+
+---
+
+# Next.js API vs 별도 백엔드 서버
+
+지금 나의 블로그는 next.js로 구현이 되어 있기 때문에,
+Next.js의 API Routes를 이용해서 vercel에 배포할 수 있다.
+하지만 vercel로 배포할시 serverless 방식으로만 가능하기 때문에,
+나는 별도의 백엔드 서버를 Python으로 만들고자 한다.
+
+---
+
+# 왜 PostgreSQL인가?
+
+PostgreSQL이 MySQL보다 json 데이터를 잘 처리한다고 한다.
+노션 블로그 글들의 속성들은 json 형태이기 때문에, PostgreSQL을 사용하고자 한다.
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+-- 데이터베이스 생성
+CREATE DATABASE notion_blog;
+
+-- 사용자 생성
+CREATE USER myuser WITH PASSWORD 'mypassword';
+
+-- 권한 부여
+GRANT ALL PRIVILEGES ON DATABASE notion_blog TO myuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO myuser;
+
+-- 확인
+\l  -- 데이터베이스 목록
+\q  -- 종료
+```
+
+그리고 내 노션 데이터들을 저장할 테이블들을 생성하는 쿼리:
+
+```sql
+-- 1) 상태 테이블
+CREATE TABLE IF NOT EXISTS statuses (
+  id            text PRIMARY KEY,
+  name          text NOT NULL UNIQUE,
+  color         text
+);
+
+-- 2) 태그 테이블
+CREATE TABLE IF NOT EXISTS tags (
+  id            text PRIMARY KEY,
+  name          text NOT NULL,
+  color         text
+);
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags (name);
+
+-- 3) 페이지 테이블
+CREATE TABLE IF NOT EXISTS notion_pages (
+  id                      text PRIMARY KEY,
+  database_id             text NOT NULL,
+  url                     text,
+  public_url              text,
+  created_time            timestamptz NOT NULL,
+  last_edited_time        timestamptz NOT NULL,
+  created_by_user_id      text,
+  last_edited_by_user_id  text,
+  archived                boolean NOT NULL DEFAULT false,
+  in_trash                boolean NOT NULL DEFAULT false,
+  cover_url               text,
+  cover_expiry_time       timestamptz,
+  icon                    text,
+  pin                     boolean NOT NULL DEFAULT false,
+  status_id               text REFERENCES statuses(id) ON DELETE SET NULL,
+  slug                    text,
+  title                   text,
+  written_date            date,
+  raw_properties          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  synced_at               timestamptz NOT NULL DEFAULT now()
+);
+
+-- 4) 페이지-태그(M:N)
+CREATE TABLE IF NOT EXISTS page_tags (
+  page_id  text NOT NULL REFERENCES notion_pages(id) ON DELETE CASCADE,
+  tag_id   text NOT NULL REFERENCES tags(id)         ON DELETE CASCADE,
+  PRIMARY KEY (page_id, tag_id)
+);
+
+-- 5) 페이지 관계(관련 글)
+CREATE TABLE IF NOT EXISTS page_relations (
+  from_page_id  text NOT NULL REFERENCES notion_pages(id) ON DELETE CASCADE,
+  to_page_id    text NOT NULL REFERENCES notion_pages(id) ON DELETE CASCADE,
+  PRIMARY KEY (from_page_id, to_page_id)
+);
+```
+
+---
+
+# 왜 FastAPI인가?
+
+일단 python 백엔드 프레임워크를 사용하는 이유는,
+나는 장기적으로 딥러닝 모델도 배포를 해보고 싶은데 주로 python으로 모델을 개발하므로
+python 백엔드 로직을 가질 때 이점이 있을 수 있다고 생각한다.
+
+그리고 python 백엔드 프레임워크는 주로 Django, Flask, FastAPI를 사용한다고 한다.
+내 프론트 코드를 next.js로 개발이 되어있고, FastAPI가 마침 API 중심 프레임워크라서,
+FastAPI를 공부해보려고 한다.
+
+### 폴더 구조
+
+fastAPI는 `npx create-react-app` 처럼 기본적으로 폴더 구조들을 생성해주는 명령어는 없다고 한다.
+
+```
+fastapi-app/
+├─ app/
+│  ├─ main.py          # FastAPI 앱 엔트리 포인트
+│  ├─ models.py        # DB 모델(SQLAlchemy)
+│  ├─ schemas.py       # Pydantic 모델 (데이터 검증)
+│  ├─ crud.py          # DB 관련 함수들 (생성/조회/수정/삭제)
+│  ├─ api/
+│  │   ├─ __init__.py
+│  │   └─ endpoints.py # 라우터들
+│  └─ core/
+│      ├─ config.py    # 환경변수, 설정
+│      └─ database.py  # DB 연결
+├─ tests/              # 유닛 테스트
+├─ requirements.txt
+├─ Dockerfile
+├─ docker-compose.yml
+└─ .env
+```
+
+파일별 기준:
+
+- `app/main.py`: 앱 엔트리, 라우터 include, 정적 파일 마운트, 최소 부트스트랩만 유지
+- `app/core/database.py`: 인프라 계층 - DB 연결 설정, 세션 유틸
+- `app/models.py`: 도메인/영속 계층 - SQLAlchemy 모델, DB 스키마와 직접 1:1 대응
+- `app/schemas.py`: 전송 계층(계약) - Pydantic 모델로 요청/응답 스키마 정의
+- `app/crud.py`: 응용 서비스(쿼리/명령) - DB 세션을 받아 도메인 조회/갱신 함수 제공
+- `app/api/endpoints.py`: 프레젠테이션(API) - FastAPI 라우터 정의
+- `app/notion.py`: 외부 연동(Integration) - Notion API 호출, 데이터 변환
+
+---
+
+# Main Feature
+
+### 이미지 다운 후 내 스토리지에 저장
+
+```python
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+Path("static").mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+```
+
+```python
+local_cover_path = None
+if cover_url:
+    try:
+        resp = requests.get(cover_url, timeout=15)
+        resp.raise_for_status()
+        content_type = resp.headers.get("Content-Type", "")
+        ext = ""
+        if "image/" in content_type:
+            ext = "." + content_type.split("/")[-1].split(";")[0]
+        else:
+            ext = ".jpg"
+        filename = f"{page_id}{ext}"
+        file_path = static_dir / filename
+        with open(file_path, "wb") as f:
+            f.write(resp.content)
+        local_cover_path = f"/static/covers/{filename}"
+    except Exception:
+        local_cover_path = None
+```
+
+### API 호출 시간 측정
+
+```python
+@app.middleware("http")
+async def log_process_time(request: Request, call_next):
+    start = perf_counter()
+    response = await call_next(request)
+    duration = perf_counter() - start
+    response.headers["X-Process-Time"] = f"{duration:.3f}s"
+    try:
+        print(f"{request.method} {request.url.path} {response.status_code} - {duration*1000:.1f} ms")
+    except Exception:
+        pass
+    return response
+```
+
+이 `미들웨어`를 이용하면, api를 호출 성공하는데 사용한 시간이 헤더에 출력된다.
+
+### API 호출 시간 단축하기
+
+노션 데이터베이스의 last_edited_time과 내 DB의 last_edited_time이 다르면 동기화하도록 만들었다.
+**36.128s → 1.721s** 로 단축해냈다!!

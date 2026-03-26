@@ -1,0 +1,90 @@
+---
+title: "RNN 이론"
+description: "시퀀스 데이터를 처리하는 RNN의 구조와 Vanishing Gradient 문제, 그리고 이를 해결한 LSTM까지 정리."
+date: "2025-08-01"
+category: "AI"
+tags: ["rnn", "lstm", "deep-learning", "ai", "python"]
+thumbnail: "/images/thumbnails/rnn-theory.png"
+---
+
+# RNN 이론 개요
+
+1. Idea behind Recurrent Neural Network
+2. Vanishing Gradient Problem
+3. Long Short Term Memory (LSTM)
+4. Extra. LSTM Variations
+
+# 인공 신경망의 종류
+
+| 종류                         | 학습방식     | 용도                            |
+| ---------------------------- | ------------ | ------------------------------- |
+| Artifical Neural Network     | Supervised   | for Regression & Classification |
+| Convolutional Neural Network | Supervised   | for Computer Vision             |
+| Recurrent Neural Network     | Supervised   | for Time Series Analysis        |
+| Self-Organizing Maps         | Unsupervised | for Feature Detection           |
+| Deep Boltzman Machines       | Unsupervised | for Recommendation Systems      |
+| AutoEncoders                 | Unsupervised | for Recommendation Systems      |
+
+RNN은 시퀀스 데이터를 처리하는 데 특화된 인공신경망의 한 종류이다.
+일반적인 인공신경망과 다른 점은, 이전의 정보를 기억해서 다음 출력에 반영할 수 있다.
+
+# RNN의 형태
+
+1. One to One - 단순 Neural Network와 같다.
+2. One to Many - 이미지 하나를 입력 받아 문장 만들어주기 (문장 자체가 Sequence라서 RNN 형태여야 한다)
+3. Many to One - 감정 분석과 같이 문장을 읽고 감정을 하나로 예측하기 (그냥 Text를 하나로 넣으면 문맥 정보가 손실됨)
+4. Many to Many - 번역, 챗봇 등
+
+대체로 문장과 같이 Sequence가 중요한 분석에서 RNN을 사용하는 것 같다.
+
+주식의 경우 RNN을 사용하는 이유:
+
+- 주식은 과거 데이터가 미래 예측에 영향을 주는 시간 의존성이 강한 데이터
+- 일반적인 신경망에서는 과거 5일치 가격을 입력으로 넣더라도, 그 순서 자체의 의미는 고려하지 않음
+- RNN 기반 모델은 이전 시점의 은닉 상태를 사용하여 현재 예측에 반영, "시간 흐름상 어떤 변화가 일어났는가"를 인식
+
+# Vanishing Gradient Problem
+
+역전파(backpropagation) 과정에서 기울기(gradient)가 점점 작아져서 과거 시점의 가중치들이 거의 업데이트되지 않는 현상이다.
+
+역전파 공식의 중요한 부분:
+
+$$\frac{\partial x_t}{\partial x_k} = \prod_{t \geq i > k} \mathbf{W}_{rec}^\top \cdot \operatorname{diag} \left( \sigma'(x_{i - 1}) \right)$$
+
+- 시간 간격이 커질수록 → 곱셈 연산이 많아지고
+- $\mathbf{W}_{rec}$이 작으면 → 곱할수록 0에 가까워진다.
+- 반대로 1보다 크면 곱할수록 Exploding Gradient (기울기 폭발)
+
+예: "나는 밥을 먹고 회사에 갔다." 에서 "나는"이라는 단어가 "갔다"에 영향을 미쳐야 할 수도 있지만, Vanishing Gradient 때문에 RNN은 너무 과거의 정보인 "나는"을 거의 기억하지 못하게 됨.
+
+### 대표적인 해결방법
+
+1. Exploding Gradient
+   - Truncated Backpropagation
+   - Penalties
+   - Gradient Clipping
+2. Vanishing Gradient
+   - Weight Initialization
+   - Echo State Networks
+   - Long Short-Term Memory Networks (LSTMs)
+
+# LSTMs
+
+- `CS` (Cell State): 장기기억에 유리함
+- `HS` (Hidden State): 오른쪽에 Output Gate을 곱하기에 단기기억에 유리함
+- `Forget Gate`: 이전 셀 상태 중 얼마나 잊을지 결정 (Sigmoid 함수라서 0~1의 결과를 출력)
+- `Input Gate`: 현재 입력을 바탕으로 얼마나 저장할지 결정
+- `Candidate Gate`: 새로운 정보를 기억할 후보값
+- `Output Gate`: 다음 은닉 상태에 얼마나 보일지 결정 (tanh 함수는 -1~1의 결과를 출력)
+
+역전파 공식:
+
+$$\frac{\partial \mathcal{L}}{\partial h_{t-1}} =\left(\frac{\partial z_f}{\partial h_{t-1}} +\frac{\partial z_i}{\partial h_{t-1}} +\frac{\partial z_o}{\partial h_{t-1}} +\frac{\partial z_C}{\partial h_{t-1}}\right)$$
+
+$$\frac{\partial \mathcal{L}}{\partial C_{t-1}} =\frac{\partial \mathcal{L}}{\partial C_t} \circ f_t$$
+
+기존 RNN과는 다르게 곱하기가 아니라 더하기로 되어있어서 기울기가 0으로 빠르게 수렴하지 않는다.
+
+# LSTMs variations
+
+이 부분은 논문을 읽으면서 다른 글로 좀 더 자세하게 공부하고자 한다.
