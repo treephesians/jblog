@@ -4,7 +4,7 @@ description: "Partial Prerendering으로 정적과 동적의 경계가 사라진
 date: "2026-03-24"
 category: "Frontend"
 tags: ["frontend", "next.js", "rendering", "optimization"]
-thumbnail: "/images/thumbnails/nextjs-ppr.png"
+thumbnail: "/images/thumbnails/nextjs-ppr.jpg"
 featured: true
 ---
 
@@ -15,8 +15,6 @@ featured: true
 그때마다 "이게 최종 형태인가?" 싶었는데, **또 나왔다.**
 
 **Partial Prerendering(PPR).**
-
-![또 나왔다](https://media.giphy.com/media/l0HlvtIPdijJT1Gzm/giphy.gif)
 
 솔직히 처음 들었을 때는 "대체 렌더링 방식이 몇 개야" 싶었다. 근데 PPR을 파보고 나니까 이해했다. **이건 진짜 끝판왕이다.** 기존 렌더링 방식들의 장점만 골라 합친, 자연스러운 최종 진화 형태다.
 
@@ -95,11 +93,11 @@ PPR의 동작 원리는 생각보다 우아하다.
 
 ```typescript
 // next.config.ts
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: 'incremental', // 라우트별로 PPR 점진적 적용
+    ppr: "incremental", // 라우트별로 PPR 점진적 적용
   },
 };
 
@@ -224,22 +222,20 @@ LCP:  ~650ms
 
 CSR부터 PPR까지, 렌더링의 진화를 한 눈에 정리한다.
 
-| 방식 | 정적 콘텐츠 | 동적 콘텐츠 | TTFB | SEO | 단위 |
-|------|-----------|-----------|------|-----|------|
-| **CSR** | X | O (클라이언트) | 빠름 | 나쁨 | 페이지 |
-| **SSR** | O | O (서버) | 느림 | 좋음 | 페이지 |
-| **SSG** | O | X | 매우 빠름 | 좋음 | 페이지 |
-| **ISR** | O | 부분적 (revalidate) | 매우 빠름 | 좋음 | 페이지 |
-| **RSC** | O | O (컴포넌트) | 보통 | 좋음 | 컴포넌트 |
-| **PPR** | O (빌드) | O (스트리밍) | 매우 빠름 | 좋음 | 컴포넌트 |
+| 방식    | 정적 콘텐츠 | 동적 콘텐츠         | TTFB      | SEO  | 단위     |
+| ------- | ----------- | ------------------- | --------- | ---- | -------- |
+| **CSR** | X           | O (클라이언트)      | 빠름      | 나쁨 | 페이지   |
+| **SSR** | O           | O (서버)            | 느림      | 좋음 | 페이지   |
+| **SSG** | O           | X                   | 매우 빠름 | 좋음 | 페이지   |
+| **ISR** | O           | 부분적 (revalidate) | 매우 빠름 | 좋음 | 페이지   |
+| **RSC** | O           | O (컴포넌트)        | 보통      | 좋음 | 컴포넌트 |
+| **PPR** | O (빌드)    | O (스트리밍)        | 매우 빠름 | 좋음 | 컴포넌트 |
 
 진화 흐름을 보면 명확한 패턴이 있다.
 
 **CSR** → **SSR** → **SSG** → **ISR** → **RSC** → **PPR**
 
 매 단계마다 "정적과 동적의 경계를 더 세밀하게 제어"하는 방향으로 발전했다. PPR은 그 경계를 **컴포넌트 단위로, 하나의 라우트 안에서** 자유롭게 넘나드는 최종 형태다.
-
-![진화](https://media.giphy.com/media/Vf3FDofJ6JSJxrJGzF/giphy.gif)
 
 ---
 
@@ -280,8 +276,6 @@ npm install next@latest
 
 > **개인적인 의견**: 정적/동적 비율이 **7:3 ~ 5:5** 정도 되는 페이지에서 PPR의 효과가 극대화된다. 한쪽으로 너무 치우치면 굳이 PPR을 쓸 이유가 줄어든다.
 
-![밸런스](https://media.giphy.com/media/l4FGuhL4U2WSOlSec/giphy.gif)
-
 ---
 
 ## 마무리: 렌더링의 끝은 어디인가
@@ -305,5 +299,3 @@ CSR → SSR → SSG → ISR → RSC → PPR.
 - [Next.js Docs - Partial Prerendering](https://nextjs.org/docs/app/building-your-application/rendering/partial-prerendering)
 - [Vercel Blog - Partial Prerendering](https://vercel.com/blog/partial-prerendering-with-next-js-creating-a-new-default-rendering-model)
 - [Next.js Security Advisory - CVE-2025-59472](https://github.com/vercel/next.js/security/advisories)
-- [렌더링 방식 고찰 (CSR, SSR, SSG, ISR)](/posts/Frontend/about-nextjs-rendering)
-- [React Server Components 딥다이브](/posts/Frontend/react-server-components)
