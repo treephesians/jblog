@@ -1,7 +1,7 @@
 ---
 title: "스벨트를 통해 리액트를 더 잘 이해하기"
 description: "FEConf 2025 발표 리뷰 — 왜 모든 프레임워크가 시그널로 가는데 리액트만 안 갈까?"
-date: "2026-03-24"
+date: "2025-08-12"
 category: "Review"
 tags: ["feconf", "svelte", "react", "frontend"]
 thumbnail: "/images/thumbnails/feconf-2025-svelte-react.png"
@@ -115,11 +115,11 @@ Svelte 5에서 도입된 **Runes**는 시그널 기반의 반응성 시스템이
 
 리액트와 비교해보면,
 
-| Svelte 5 Runes | React Hooks | 차이점 |
-|---|---|---|
-| `$state(0)` | `useState(0)` | Svelte는 직접 할당 가능 (`count++`) |
-| `$derived(count * 2)` | `useMemo(() => count * 2, [count])` | Svelte는 의존성 배열 불필요 |
-| `$effect(() => {...})` | `useEffect(() => {...}, [deps])` | Svelte는 자동으로 의존성 추적 |
+| Svelte 5 Runes         | React Hooks                         | 차이점                              |
+| ---------------------- | ----------------------------------- | ----------------------------------- |
+| `$state(0)`            | `useState(0)`                       | Svelte는 직접 할당 가능 (`count++`) |
+| `$derived(count * 2)`  | `useMemo(() => count * 2, [count])` | Svelte는 의존성 배열 불필요         |
+| `$effect(() => {...})` | `useEffect(() => {...}, [deps])`    | Svelte는 자동으로 의존성 추적       |
 
 **의존성 배열이 없다.** 이게 Svelte의 가장 큰 매력이다.
 
@@ -137,11 +137,11 @@ Svelte의 컴파일러가 코드를 분석해서 **자동으로 의존성을 추
 
 React 19 Compiler vs Svelte 5의 비교에서,
 
-| 지표 | React 19 | Svelte 5 | 차이 |
-|---|---|---|---|
-| INP (Interaction to Next Paint) | 68ms | 24ms | **약 3배 빠름** |
-| 번들 크기 | ~45KB (runtime) | ~2KB (컴파일 결과) | **약 22배 작음** |
-| 메모리 사용량 | 상대적으로 높음 | 상대적으로 낮음 | |
+| 지표                            | React 19        | Svelte 5           | 차이             |
+| ------------------------------- | --------------- | ------------------ | ---------------- |
+| INP (Interaction to Next Paint) | 68ms            | 24ms               | **약 3배 빠름**  |
+| 번들 크기                       | ~45KB (runtime) | ~2KB (컴파일 결과) | **약 22배 작음** |
+| 메모리 사용량                   | 상대적으로 높음 | 상대적으로 낮음    |                  |
 
 특히 INP에서 3배 차이는 체감이 확실히 된다.
 

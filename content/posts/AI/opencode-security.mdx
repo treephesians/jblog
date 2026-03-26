@@ -1,7 +1,7 @@
 ---
 title: "OpenCode 회사에서 써도 될까?"
 description: "OpenCode를 사용할 때 코드 유출이 안되는지 분석합니다."
-date: "2026-03-23"
+date: "2026-02-23"
 category: "AI"
 tags: ["review", "ai", "agent"]
 thumbnail: "/images/thumbnails/opencode-analysis.png"
@@ -62,14 +62,16 @@ packages/opencode/src/installation/index.ts:208: return fetch("https://formulae.
 const result = await fetch(`${await url()}/api/share`, {
   method: "POST",
   body: JSON.stringify({ sessionID: sessionID }),
-})
+});
 ```
 
 **뭘 보내나?**
+
 - 세션 전체 (대화 내용, 코드, 파일 내용)
 - `opncd.ai` 서버로 전송
 
 **어디로?**
+
 - 기본값: `https://opncd.ai`
 - 엔터프라이즈 설정 시 커스텀 URL
 
@@ -88,14 +90,16 @@ Bus.subscribe(MessageV2.Event.Updated, async (evt) => {
 ```
 
 **비활성화 방법:**
+
 ```bash
 export OPENCODE_DISABLE_SHARE=true
 ```
 
 다행히 코드 첫 부분에서 체크한다:
+
 ```typescript
 // share-next.ts:19
-const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true"
+const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true";
 ```
 
 ---
@@ -104,22 +108,23 @@ const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true"
 
 ```typescript
 // provider.ts:406
-return fetch(input, { ...init, headers })
+return fetch(input, { ...init, headers });
 ```
 
 **뭘 보내나?**
+
 - 프롬프트
 - 코드 컨텍스트
 - 파일 내용
 
 이건 비활성화할 수 없다. AI 에이전트니까. 대신 **어떤 프로바이더를 쓰느냐**가 중요하다.
 
-| 프로바이더 | 회사용 추천 |
-|-----------|-------------|
-| Azure OpenAI | ⭐ 엔터프라이즈 정책 적용 가능 |
-| AWS Bedrock | ⭐ VPC 내부 배포 가능 |
+| 프로바이더     | 회사용 추천                      |
+| -------------- | -------------------------------- |
+| Azure OpenAI   | ⭐ 엔터프라이즈 정책 적용 가능   |
+| AWS Bedrock    | ⭐ VPC 내부 배포 가능            |
 | Anthropic 직접 | 보통 (데이터 학습에 미사용 명시) |
-| OpenAI 직접 | 보통 |
+| OpenAI 직접    | 보통                             |
 
 ---
 
@@ -133,18 +138,20 @@ const response = await fetch(`https://mcp.exa.ai/mcp`, {
   body: JSON.stringify({
     params: {
       arguments: {
-        query: params.query,  // 검색어만!
+        query: params.query, // 검색어만!
       },
     },
   }),
-})
+});
 ```
 
 **뭘 보내나?**
+
 - 검색 쿼리 (예: "React useState examples")
 - 검색 옵션
 
 **뭘 안 보내나?**
+
 - 소스 코드 ❌
 - 파일 내용 ❌
 - 대화 히스토리 ❌
@@ -159,9 +166,9 @@ Google 검색하는 거랑 똑같다. 다만 검색어에 "우리 회사 ABC 프
 
 ```typescript
 // 설치 방법에 따라 다른 서버 호출
-fetch("https://formulae.brew.sh/api/formula/opencode.json")  // brew
-fetch("https://registry.npmjs.org/opencode-ai/latest")       // npm
-fetch("https://api.github.com/repos/anomalyco/opencode/releases/latest")  // curl
+fetch("https://formulae.brew.sh/api/formula/opencode.json"); // brew
+fetch("https://registry.npmjs.org/opencode-ai/latest"); // npm
+fetch("https://api.github.com/repos/anomalyco/opencode/releases/latest"); // curl
 ```
 
 최신 버전 있는지만 확인한다. 내 코드 안 보낸다.
@@ -169,7 +176,9 @@ fetch("https://api.github.com/repos/anomalyco/opencode/releases/latest")  // cur
 #### LSP 서버 다운로드 (lsp/server.ts)
 
 ```typescript
-const response = await fetch("https://github.com/microsoft/vscode-eslint/archive/refs/heads/main.zip")
+const response = await fetch(
+  "https://github.com/microsoft/vscode-eslint/archive/refs/heads/main.zip",
+);
 ```
 
 언어 서버 바이너리 다운로드용. 내 코드 안 보냄.
@@ -187,9 +196,10 @@ grep -rn "sentry\|mixpanel\|amplitude\|analytics" packages/opencode/src --includ
 **결과: 없음** ✅
 
 OpenTelemetry는 있는데:
+
 ```typescript
 // config/config.ts:1154
-openTelemetry: z.boolean().default(false)  // 기본 비활성화
+openTelemetry: z.boolean().default(false); // 기본 비활성화
 ```
 
 기본 꺼져있고, 켜도 로컬 스팬 수집용이다. 외부 전송 아님.
@@ -229,9 +239,7 @@ export AZURE_OPENAI_ENDPOINT="https://your-company.openai.azure.com"
 ```json
 {
   "mcp": {},
-  "instructions": [
-    "AGENTS.md"
-  ]
+  "instructions": ["AGENTS.md"]
 }
 ```
 
@@ -280,22 +288,26 @@ OPENCODE_DISABLE_SHARE=true opencode
 ## OpenCode 보안 검토 결과
 
 ### 분석 방법
+
 - 소스 코드 직접 분석 (grep으로 fetch 호출 검색)
 - 네트워크 트래픽 모니터링
 
 ### 외부 통신 목록
-| 대상 | 목적 | 전송 데이터 | 비활성화 |
-|------|------|-------------|----------|
-| LLM 프로바이더 | AI 기능 | 프롬프트, 코드 | 불가 (핵심 기능) |
-| opncd.ai | 세션 공유 | 세션 전체 | ✅ OPENCODE_DISABLE_SHARE=true |
-| mcp.exa.ai | 웹 검색 | 검색 쿼리 | 도구 미사용 |
-| npm/brew/github | 버전 체크 | 없음 | - |
+
+| 대상            | 목적      | 전송 데이터    | 비활성화                       |
+| --------------- | --------- | -------------- | ------------------------------ |
+| LLM 프로바이더  | AI 기능   | 프롬프트, 코드 | 불가 (핵심 기능)               |
+| opncd.ai        | 세션 공유 | 세션 전체      | ✅ OPENCODE_DISABLE_SHARE=true |
+| mcp.exa.ai      | 웹 검색   | 검색 쿼리      | 도구 미사용                    |
+| npm/brew/github | 버전 체크 | 없음           | -                              |
 
 ### 텔레메트리
+
 - Sentry, Mixpanel 등 분석 도구: **없음**
 - OpenTelemetry: 기본 비활성화, 활성화해도 로컬 전용
 
 ### 적용한 보안 설정
+
 - [x] OPENCODE_DISABLE_SHARE=true 환경변수 설정
 - [x] 로컬 API 키 사용 (OAuth 미사용)
 - [x] MCP 서버 미설정
