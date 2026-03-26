@@ -1,7 +1,7 @@
 ---
 title: "Adapter 패턴"
 description: "호환되지 않는 인터페이스를 연결해주는 Adapter 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "structural", "architecture"]
 thumbnail: "/images/thumbnails/adapter.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 6
+visible: false
 ---
 
 # 220V 콘센트에 110V 플러그를?
@@ -41,7 +42,7 @@ class StripeSdk {
 
 이때 **Adapter**를 만들면 된다.
 
----
+## visible: false
 
 ## Adapter란?
 
@@ -49,7 +50,7 @@ class StripeSdk {
 
 핵심은 간단하다. **기존 코드를 수정하지 않고**, 중간에 변환 레이어를 하나 끼워 넣는 것이다.
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -135,7 +136,7 @@ processOrder(new StripeAdapter());
 
 ![깔끔](https://media.giphy.com/media/yJFeycRK2DB4c/giphy.gif)
 
----
+## visible: false
 
 ## 실무에서 자주 만나는 Adapter
 
@@ -221,7 +222,7 @@ class ConsoleEmailAdapter implements EmailService {
 }
 ```
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -237,17 +238,17 @@ class ConsoleEmailAdapter implements EmailService {
 4. **서드파티 서비스를 교체 가능하게 만들 때**
    - Stripe → Toss Payments로 교체할 때 어댑터만 바꾸면 됨
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 기존 코드 수정 없이 호환성 확보 | 어댑터 클래스가 추가됨 |
-| SRP — 변환 로직을 분리 | 너무 많이 쓰면 코드 복잡도 증가 |
-| 외부 의존성을 격리 | 때로는 직접 수정하는 게 더 간단할 수 있음 |
+| 장점                            | 단점                                      |
+| ------------------------------- | ----------------------------------------- |
+| 기존 코드 수정 없이 호환성 확보 | 어댑터 클래스가 추가됨                    |
+| SRP — 변환 로직을 분리          | 너무 많이 쓰면 코드 복잡도 증가           |
+| 외부 의존성을 격리              | 때로는 직접 수정하는 게 더 간단할 수 있음 |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -263,7 +264,7 @@ Adapter는 **호환되지 않는 것들을 연결해주는 변환기**다.
 
 다음 글에서는 구현과 추상을 분리하는 **Bridge** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

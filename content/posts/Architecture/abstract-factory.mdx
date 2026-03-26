@@ -1,7 +1,7 @@
 ---
 title: "Abstract Factory 패턴"
 description: "관련된 객체들의 가족을 통째로 생성하는 Abstract Factory 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "creational", "architecture"]
 thumbnail: "/images/thumbnails/abstract-factory.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 2
+visible: false
 ---
 
 # 가구를 사러 왔는데 의자만 모던이고 소파는 빈티지?
@@ -36,7 +37,7 @@ const modal = new DarkModal();
 
 **관련 있는 객체들은 반드시 같은 가족끼리 생성되어야 한다.** 이걸 보장해주는 패턴이 Abstract Factory다.
 
----
+## visible: false
 
 ## Abstract Factory란?
 
@@ -50,7 +51,7 @@ IKEA에 비유하면, "모던 스타일 세트"를 주문하면 모던 의자 + 
 
 개별로 고르는 게 아니라 **세트로 묶어서** 제공한다.
 
----
+## visible: false
 
 ## 구조
 
@@ -71,7 +72,7 @@ LightThemeFactory (implements AbstractFactory)
   └── createModal(): LightModal
 ```
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -215,9 +216,8 @@ function renderPage(factory: UIFactory) {
 
 // 테마 전환이 이렇게 간단해진다
 const theme = getUserPreference(); // "dark" | "light"
-const factory = theme === "dark"
-  ? new DarkThemeFactory()
-  : new LightThemeFactory();
+const factory =
+  theme === "dark" ? new DarkThemeFactory() : new LightThemeFactory();
 
 renderPage(factory);
 ```
@@ -228,20 +228,20 @@ renderPage(factory);
 
 ![완벽해](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
 
----
+## visible: false
 
 ## Factory Method vs Abstract Factory
 
 이 둘이 헷갈리는 사람이 많다. 차이를 정리하면,
 
-| | Factory Method | Abstract Factory |
-|---|---|---|
-| **생성 대상** | 하나의 제품 | 관련 제품군 (여러 개) |
-| **핵심** | 상속을 통한 객체 생성 위임 | 관련 객체들의 일관된 생성 |
-| **확장** | 새로운 제품 타입 추가 | 새로운 제품 가족 추가 |
-| **비유** | 셰프가 요리 하나를 만듦 | 코스 요리 세트를 만듦 |
+|               | Factory Method             | Abstract Factory          |
+| ------------- | -------------------------- | ------------------------- |
+| **생성 대상** | 하나의 제품                | 관련 제품군 (여러 개)     |
+| **핵심**      | 상속을 통한 객체 생성 위임 | 관련 객체들의 일관된 생성 |
+| **확장**      | 새로운 제품 타입 추가      | 새로운 제품 가족 추가     |
+| **비유**      | 셰프가 요리 하나를 만듦    | 코스 요리 세트를 만듦     |
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -262,15 +262,15 @@ renderPage(factory);
 - **ORM의 DB 드라이버** — TypeORM이 MySQL/PostgreSQL/SQLite에 따라 다른 구현체 세트를 제공
 - **테스트 환경 구성** — 실제 DB + 실제 캐시 vs Mock DB + Mock 캐시
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 제품 가족의 일관성 보장 | 새로운 종류의 제품 추가가 어려움 |
-| 구체 클래스와의 결합도를 낮춤 | 코드가 복잡해질 수 있음 (클래스 폭발) |
-| 제품 교체가 팩토리 하나만 바꾸면 됨 | 모든 제품군이 같은 변형을 가져야 함 |
+| 장점                                | 단점                                  |
+| ----------------------------------- | ------------------------------------- |
+| 제품 가족의 일관성 보장             | 새로운 종류의 제품 추가가 어려움      |
+| 구체 클래스와의 결합도를 낮춤       | 코드가 복잡해질 수 있음 (클래스 폭발) |
+| 제품 교체가 팩토리 하나만 바꾸면 됨 | 모든 제품군이 같은 변형을 가져야 함   |
 
 특히 "새로운 종류의 제품 추가가 어렵다"는 점에 주목하자.
 
@@ -278,7 +278,7 @@ renderPage(factory);
 
 반면 새로운 테마(예: "네온" 테마)를 추가하는 것은 쉽다. `NeonThemeFactory`만 만들면 된다.
 
----
+## visible: false
 
 ## 정리하며
 
@@ -292,7 +292,7 @@ Abstract Factory는 **관련 객체들을 세트로 묶어서 생성**하는 패
 
 다음 글에서는 복잡한 객체를 단계적으로 조립하는 **Builder** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

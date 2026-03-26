@@ -1,7 +1,7 @@
 ---
 title: "State 패턴"
 description: "객체의 내부 상태에 따라 행동이 바뀌는 State 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "behavioral", "architecture"]
 thumbnail: "/images/thumbnails/state.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 19
+visible: false
 ---
 
 # 자판기 앞에서 벌어지는 일
@@ -26,7 +27,7 @@ series:
 
 코드에서도 이런 상황이 끊임없이 생긴다. 그리고 대부분 이렇게 처리한다 — `if (state === "idle")`, `else if (state === "hasMoney")`, `else if`...
 
----
+## visible: false
 
 ## State 패턴이란?
 
@@ -40,7 +41,7 @@ series:
 
 ![변신](https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif)
 
----
+## visible: false
 
 ## Before: 지옥의 if-else
 
@@ -103,7 +104,7 @@ class Order {
 
 상태가 5개, 메서드가 3개만 돼도 **15개의 분기문**이다. 상태가 하나 늘면? 모든 메서드를 찾아다니며 수정해야 한다. 실수하기 딱 좋은 구조다.
 
----
+## visible: false
 
 ## After: State 패턴 적용
 
@@ -303,7 +304,7 @@ order.deliver();
 
 ![깔끔](https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif)
 
----
+## visible: false
 
 ## 실전에서 만나는 State 패턴
 
@@ -543,22 +544,22 @@ class AttackingState implements CharacterState {
 }
 ```
 
----
+## visible: false
 
 ## State vs Strategy — 뭐가 다른 거야?
 
 이 두 패턴은 구조가 거의 동일해서 자주 혼동된다. 핵심 차이는 **의도**에 있다.
 
-| | State | Strategy |
-|---|---|---|
-| **목적** | 상태에 따라 행동이 자동으로 바뀜 | 알고리즘을 외부에서 선택 |
-| **전환 주체** | 상태 객체 스스로 다음 상태로 전환 | 클라이언트가 전략을 교체 |
-| **상태 인식** | 상태 객체가 Context를 알고, 전환을 트리거 | 전략 객체는 다른 전략의 존재를 모름 |
-| **비유** | 자판기 — 동전 넣으면 자동으로 상태 변경 | 네비게이션 — 사용자가 경로 알고리즘 선택 |
+|               | State                                     | Strategy                                 |
+| ------------- | ----------------------------------------- | ---------------------------------------- |
+| **목적**      | 상태에 따라 행동이 자동으로 바뀜          | 알고리즘을 외부에서 선택                 |
+| **전환 주체** | 상태 객체 스스로 다음 상태로 전환         | 클라이언트가 전략을 교체                 |
+| **상태 인식** | 상태 객체가 Context를 알고, 전환을 트리거 | 전략 객체는 다른 전략의 존재를 모름      |
+| **비유**      | 자판기 — 동전 넣으면 자동으로 상태 변경   | 네비게이션 — 사용자가 경로 알고리즘 선택 |
 
 쉽게 말하면, **State는 "알아서 바뀌는 것"**이고 **Strategy는 "골라서 쓰는 것"**이다.
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -571,18 +572,18 @@ class AttackingState implements CharacterState {
 3. **상태 전이 로직이 복잡할 때**
    - 상태 다이어그램을 그릴 수 있는 수준이라면 State 패턴이 적합하다
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| SRP — 각 상태의 행동이 한 클래스에 응집 | 상태가 적으면 오버 엔지니어링이 될 수 있음 |
-| OCP — 새 상태 추가 시 기존 코드 수정 불필요 | 클래스 수가 늘어남 |
-| 상태 전이가 명확하고 예측 가능 | 상태 간 의존 관계가 생길 수 있음 |
-| 거대한 조건문 제거 | 단순한 상태 전이에는 enum + switch가 나을 수 있음 |
+| 장점                                        | 단점                                              |
+| ------------------------------------------- | ------------------------------------------------- |
+| SRP — 각 상태의 행동이 한 클래스에 응집     | 상태가 적으면 오버 엔지니어링이 될 수 있음        |
+| OCP — 새 상태 추가 시 기존 코드 수정 불필요 | 클래스 수가 늘어남                                |
+| 상태 전이가 명확하고 예측 가능              | 상태 간 의존 관계가 생길 수 있음                  |
+| 거대한 조건문 제거                          | 단순한 상태 전이에는 enum + switch가 나을 수 있음 |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -598,7 +599,7 @@ State 패턴은 **객체의 상태에 따라 행동을 바꾸는** 패턴이다.
 
 ![정리 완료](https://media.giphy.com/media/3oKIPf3C7HqqYBVcCk/giphy.gif)
 
----
+## visible: false
 
 # Reference
 

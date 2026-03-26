@@ -1,7 +1,7 @@
 ---
 title: "Builder 패턴"
 description: "복잡한 객체를 단계별로 조립하는 Builder 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "creational", "architecture"]
 thumbnail: "/images/thumbnails/builder.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 3
+visible: false
 ---
 
 # 생성자에 매개변수가 10개?
@@ -42,7 +43,7 @@ const user = new User(
 
 이 문제를 우아하게 해결하는 패턴이 **Builder**다.
 
----
+## visible: false
 
 ## Builder란?
 
@@ -54,7 +55,7 @@ const user = new User(
 
 모든 재료를 한 번에 외칠 필요 없이, **하나씩 골라서 조립**하면 된다.
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -180,7 +181,7 @@ const request = new HttpRequestBuilder()
 
 각 메서드 이름 덕분에 **뭘 설정하는지 한눈에 보인다.** 필요 없는 건 그냥 안 쓰면 된다.
 
----
+## visible: false
 
 ## Director: 미리 정의된 레시피
 
@@ -228,7 +229,7 @@ Director는 **자주 쓰는 조합을 캡슐화**하는 역할이다.
 
 서브웨이로 치면 "이탈리안 BMT 세트"처럼 인기 메뉴를 미리 정해놓은 것이다.
 
----
+## visible: false
 
 ## 실무에서 볼 수 있는 Builder 패턴
 
@@ -268,7 +269,7 @@ app
 
 메서드 체이닝으로 단계별 설정을 하는 것들은 대부분 Builder 패턴의 변형이다.
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -284,18 +285,18 @@ app
 4. **불변(Immutable) 객체를 만들고 싶을 때**
    - Builder로 조립 후 `build()`에서 freeze된 객체 반환
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 가독성 향상 (메서드 체이닝) | 클래스가 하나 더 필요함 |
-| 선택적 매개변수를 깔끔하게 처리 | 간단한 객체에는 오버킬 |
+| 장점                              | 단점                              |
+| --------------------------------- | --------------------------------- |
+| 가독성 향상 (메서드 체이닝)       | 클래스가 하나 더 필요함           |
+| 선택적 매개변수를 깔끔하게 처리   | 간단한 객체에는 오버킬            |
 | 같은 빌더로 다양한 표현 생성 가능 | Builder와 Product의 동기화가 필요 |
-| `build()` 시점에 유효성 검증 가능 | |
+| `build()` 시점에 유효성 검증 가능 |                                   |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -311,7 +312,7 @@ Builder는 **복잡한 객체를 단계별로 조립**하는 패턴이다.
 
 다음 글에서는 기존 객체를 복제해서 새로운 객체를 만드는 **Prototype** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

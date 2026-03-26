@@ -45,7 +45,7 @@ export function getPostBySlug(slug: string): Post {
   };
 }
 
-export function getAllPosts(): Post[] {
+function getAllPostsRaw(): Post[] {
   return getMdxFiles(postsDirectory)
     .map((f) => getPostBySlug(f.slug))
     .filter((post) => !post.frontmatter.draft)
@@ -54,6 +54,10 @@ export function getAllPosts(): Post[] {
         new Date(b.frontmatter.date).getTime() -
         new Date(a.frontmatter.date).getTime()
     );
+}
+
+export function getAllPosts(): Post[] {
+  return getAllPostsRaw().filter((post) => post.frontmatter.visible !== false);
 }
 
 export function getFeaturedPosts(): Post[] {
@@ -76,7 +80,7 @@ export function getPostsByTag(tag: string): Post[] {
 }
 
 export function getPostsBySeries(seriesName: string): Post[] {
-  return getAllPosts()
+  return getAllPostsRaw()
     .filter(
       (post) =>
         post.frontmatter.series?.name.toLowerCase() ===
@@ -90,7 +94,7 @@ export function getPostsBySeries(seriesName: string): Post[] {
 }
 
 export function getSeriesNameBySlug(slug: string): string | undefined {
-  const posts = getAllPosts();
+  const posts = getAllPostsRaw();
   for (const post of posts) {
     const s = post.frontmatter.series;
     if (s?.slug === slug) return s.name;
@@ -109,7 +113,7 @@ export function getAllTags(): string[] {
 }
 
 export function getAllSeries(): string[] {
-  const series = getAllPosts()
+  const series = getAllPostsRaw()
     .map((post) => post.frontmatter.series?.name)
     .filter((name): name is string => !!name);
   return [...new Set(series)];

@@ -1,7 +1,7 @@
 ---
 title: "Chain of Responsibility 패턴"
 description: "요청을 핸들러 체인을 따라 전달하는 Chain of Responsibility 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "behavioral", "architecture"]
 thumbnail: "/images/thumbnails/chain-of-responsibility.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 13
+visible: false
 ---
 
 # 고객센터에 전화하면 벌어지는 일
@@ -26,7 +27,7 @@ series:
 
 코드에서도 이런 상황이 생긴다.
 
----
+## visible: false
 
 ## Chain of Responsibility란?
 
@@ -37,7 +38,7 @@ series:
 1. **자신이 처리한다** → 체인 종료
 2. **다음 핸들러에게 넘긴다** → 체인 계속
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -205,17 +206,17 @@ const response = logging.handle({
 
 ![체인 완성](https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif)
 
----
+## visible: false
 
 ## Express 미들웨어가 바로 이것
 
 ```typescript
 // Express의 미들웨어 = Chain of Responsibility
-app.use(cors());           // CORS 체크
-app.use(helmet());         // 보안 헤더
-app.use(morgan("dev"));   // 로깅
-app.use(auth());           // 인증
-app.use(rateLimit());      // Rate Limiting
+app.use(cors()); // CORS 체크
+app.use(helmet()); // 보안 헤더
+app.use(morgan("dev")); // 로깅
+app.use(auth()); // 인증
+app.use(rateLimit()); // Rate Limiting
 
 app.get("/api/users", (req, res) => {
   // 모든 미들웨어를 통과한 요청만 여기 도달
@@ -225,7 +226,7 @@ app.get("/api/users", (req, res) => {
 
 `next()`가 바로 "다음 핸들러에게 전달"하는 역할이다.
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -238,17 +239,17 @@ app.get("/api/users", (req, res) => {
 3. **어떤 핸들러가 처리할지 런타임에 결정될 때**
    - 로그 레벨에 따라 다른 핸들러가 처리
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 핸들러 간 결합도가 낮음 | 요청이 처리되지 않을 수 있음 |
+| 장점                              | 단점                                 |
+| --------------------------------- | ------------------------------------ |
+| 핸들러 간 결합도가 낮음           | 요청이 처리되지 않을 수 있음         |
 | 핸들러 추가/제거/순서 변경이 쉬움 | 디버깅 시 체인 추적이 어려울 수 있음 |
-| SRP — 각 핸들러가 하나의 책임 | 체인이 길면 성능 영향 |
+| SRP — 각 핸들러가 하나의 책임     | 체인이 길면 성능 영향                |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -262,7 +263,7 @@ Express 미들웨어를 써본 적 있다면 이미 이 패턴을 잘 알고 있
 
 다음 글에서는 요청을 객체로 캡슐화하는 **Command** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

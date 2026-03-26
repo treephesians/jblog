@@ -1,7 +1,7 @@
 ---
 title: "Strategy 패턴"
 description: "같은 목적, 다른 방법. 알고리즘을 캡슐화하고 교체 가능하게 만드는 Strategy 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "behavioral", "architecture"]
 thumbnail: "/images/thumbnails/strategy.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 20
+visible: false
 ---
 
 # 네비게이션 앱의 고민
@@ -25,7 +26,7 @@ series:
 
 **목표는 같은데 방법만 다르다.** 이럴 때 Strategy 패턴이 빛을 발한다.
 
----
+## visible: false
 
 ## Strategy 패턴이란?
 
@@ -48,7 +49,7 @@ Context (네비게이션 앱)
 
 Context는 Strategy를 **가지고 있을 뿐**, 구체적인 알고리즘은 모른다. 런타임에 원하는 Strategy를 꽂아넣으면 된다.
 
----
+## visible: false
 
 ## Before: if-else 지옥
 
@@ -90,7 +91,7 @@ class PaymentService {
 
 ![if-else 지옥](https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.gif)
 
----
+## visible: false
 
 ## After: Strategy 패턴 적용
 
@@ -106,7 +107,7 @@ class CreditCardPayment implements PaymentStrategy {
   constructor(
     private cardNumber: string,
     private cvv: string,
-    private expiryDate: string
+    private expiryDate: string,
   ) {}
 
   validate(): boolean {
@@ -125,7 +126,7 @@ class CreditCardPayment implements PaymentStrategy {
 class BankTransferPayment implements PaymentStrategy {
   constructor(
     private bankCode: string,
-    private accountNumber: string
+    private accountNumber: string,
   ) {}
 
   validate(): boolean {
@@ -144,12 +145,16 @@ class CryptoPayment implements PaymentStrategy {
   constructor(private walletAddress: string) {}
 
   validate(): boolean {
-    return this.walletAddress.startsWith("0x") && this.walletAddress.length === 42;
+    return (
+      this.walletAddress.startsWith("0x") && this.walletAddress.length === 42
+    );
   }
 
   pay(amount: number): string {
     if (!this.validate()) throw new Error("유효하지 않은 지갑 주소");
-    console.log(`암호화폐(${this.walletAddress.slice(0, 8)}...)로 ${amount}원 결제`);
+    console.log(
+      `암호화폐(${this.walletAddress.slice(0, 8)}...)로 ${amount}원 결제`,
+    );
     return `CRYPTO-${Date.now()}`;
   }
 }
@@ -184,18 +189,20 @@ class PaymentService {
 ```typescript
 // 신용카드로 결제
 const payment = new PaymentService(
-  new CreditCardPayment("1234567890123456", "123", "12/28")
+  new CreditCardPayment("1234567890123456", "123", "12/28"),
 );
 payment.checkout(50000); // 신용카드(3456)로 50000원 결제
 
 // 결제 수단 변경? 전략만 교체하면 된다
-payment.setStrategy(new CryptoPayment("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68"));
+payment.setStrategy(
+  new CryptoPayment("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68"),
+);
 payment.checkout(100000); // 암호화폐(0x742d35...)로 100000원 결제
 ```
 
 새로운 결제 수단(카카오페이, 네이버페이 등)이 추가되면? `PaymentStrategy`를 구현하는 새 클래스만 만들면 된다. **기존 코드는 한 줄도 수정할 필요가 없다.**
 
----
+## visible: false
 
 ## 함수형 스타일로도 가능하다
 
@@ -236,13 +243,13 @@ function sortData<T>(data: T[], strategy: SortStrategy<T>): T[] {
 
 // 사용
 const data = [64, 34, 25, 12, 22, 11, 90];
-sortData(data, bubbleSort);  // 작은 배열 → 버블 정렬
-sortData(data, quickSort);   // 큰 배열 → 퀵 정렬
+sortData(data, bubbleSort); // 작은 배열 → 버블 정렬
+sortData(data, quickSort); // 큰 배열 → 퀵 정렬
 ```
 
 사실 JavaScript/TypeScript에서 함수를 인자로 넘기는 건 이미 Strategy 패턴을 쓰고 있는 것이다. `Array.sort()`에 비교 함수를 넘기는 것도, `map()`에 변환 함수를 넘기는 것도 전부 Strategy다.
 
----
+## visible: false
 
 ## 실전에서 만나는 Strategy 패턴
 
@@ -259,28 +266,36 @@ import { Strategy as LocalStrategy } from "passport-local";
 // 전략 1: Google OAuth
 passport.use(
   new GoogleStrategy(
-    { clientID: "...", clientSecret: "...", callbackURL: "/auth/google/callback" },
+    {
+      clientID: "...",
+      clientSecret: "...",
+      callbackURL: "/auth/google/callback",
+    },
     (accessToken, refreshToken, profile, done) => {
       // Google 로그인 로직
-    }
-  )
+    },
+  ),
 );
 
 // 전략 2: GitHub OAuth
 passport.use(
   new GitHubStrategy(
-    { clientID: "...", clientSecret: "...", callbackURL: "/auth/github/callback" },
+    {
+      clientID: "...",
+      clientSecret: "...",
+      callbackURL: "/auth/github/callback",
+    },
     (accessToken, refreshToken, profile, done) => {
       // GitHub 로그인 로직
-    }
-  )
+    },
+  ),
 );
 
 // 전략 3: ID/PW 로컬 로그인
 passport.use(
   new LocalStrategy((username, password, done) => {
     // 로컬 로그인 로직
-  })
+  }),
 );
 ```
 
@@ -363,7 +378,7 @@ class ProductService {
 }
 ```
 
----
+## visible: false
 
 ## 언제 Strategy 패턴을 써야 할까?
 
@@ -373,19 +388,19 @@ class ProductService {
 - 알고리즘의 내부 구현을 클라이언트로부터 **숨기고 싶을 때**
 - 여러 클래스가 **행동만 다르고 나머지는 동일**할 때
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| **OCP 준수** — 새 전략 추가 시 기존 코드 수정 불필요 | 전략이 몇 개 안 되면 **오버엔지니어링**이 될 수 있다 |
-| **런타임 전략 교체** 가능 | 클라이언트가 **전략들의 차이를 알아야** 적절한 전략을 선택할 수 있다 |
-| 알고리즘 **독립적 테스트** 가능 | 함수형 언어에서는 그냥 **함수를 넘기면 되므로** 굳이 패턴을 의식할 필요 없다 |
-| 상속 대신 **구성(composition)** 활용 | 전략 수가 많아지면 **클래스가 늘어난다** |
-| if-else 체인 제거로 **코드 가독성 향상** | Context와 Strategy 간 **추가적인 통신 오버헤드** 가능 |
+| 장점                                                 | 단점                                                                         |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **OCP 준수** — 새 전략 추가 시 기존 코드 수정 불필요 | 전략이 몇 개 안 되면 **오버엔지니어링**이 될 수 있다                         |
+| **런타임 전략 교체** 가능                            | 클라이언트가 **전략들의 차이를 알아야** 적절한 전략을 선택할 수 있다         |
+| 알고리즘 **독립적 테스트** 가능                      | 함수형 언어에서는 그냥 **함수를 넘기면 되므로** 굳이 패턴을 의식할 필요 없다 |
+| 상속 대신 **구성(composition)** 활용                 | 전략 수가 많아지면 **클래스가 늘어난다**                                     |
+| if-else 체인 제거로 **코드 가독성 향상**             | Context와 Strategy 간 **추가적인 통신 오버헤드** 가능                        |
 
----
+## visible: false
 
 ## 마무리
 
@@ -399,7 +414,7 @@ if-else로 분기하는 코드가 보이면 한 번 의심해보자. "이거 Str
 
 사실 우리는 이미 Strategy 패턴을 쓰고 있다. `Array.sort(compareFn)`, `Array.filter(predicate)`, React의 렌더 프로퍼티... 이름만 몰랐을 뿐이다. 이제 이름을 알았으니, 의도적으로 더 잘 활용할 수 있을 것이다.
 
----
+## visible: false
 
 ## Reference
 

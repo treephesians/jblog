@@ -1,7 +1,7 @@
 ---
 title: "Singleton 패턴"
 description: "인스턴스를 딱 하나만 허용하는 Singleton 패턴의 장단점과 대안을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "creational", "architecture"]
 thumbnail: "/images/thumbnails/singleton.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 5
+visible: false
 ---
 
 # 가장 유명하고, 가장 욕먹는 패턴
@@ -23,7 +24,7 @@ series:
 
 직접 알아보자.
 
----
+## visible: false
 
 ## Singleton이란?
 
@@ -36,7 +37,7 @@ series:
 
 DB 커넥션 풀을 생각해보면 이해하기 쉽다. 앱 전체에서 DB 커넥션 풀이 여러 개 생기면 리소스 낭비다. 하나만 있으면 된다.
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -47,9 +48,7 @@ class Database {
   private static instance: Database | null = null;
 
   // 생성자를 private으로 → 외부에서 new 불가
-  private constructor(
-    private connectionString: string,
-  ) {
+  private constructor(private connectionString: string) {
     console.log("DB 연결 중...");
   }
 
@@ -80,7 +79,7 @@ console.log(db1 === db2); // true — 같은 인스턴스!
 
 `getInstance()`를 몇 번을 호출해도 **항상 같은 인스턴스**를 반환한다.
 
----
+## visible: false
 
 ## 실무에서 보는 Singleton
 
@@ -165,7 +164,7 @@ class AppConfig {
 }
 ```
 
----
+## visible: false
 
 ## 그런데 왜 욕을 먹을까?
 
@@ -212,7 +211,7 @@ AppConfig.getInstance().set("API_URL", "http://localhost:3000");
 
 ![전역 상태의 비극](https://media.giphy.com/media/l0IylOPCNkiqOgMyA/giphy.gif)
 
----
+## visible: false
 
 ## 더 나은 대안: 의존성 주입 (DI)
 
@@ -242,7 +241,7 @@ const testService = new UserService(mockDb); // 쉽게 교체 가능!
 
 클래스 자체가 "나는 하나만 존재해야 해!"라고 주장할 필요 없다.
 
----
+## visible: false
 
 ## 그래서 Singleton, 쓰면 안 되나?
 
@@ -261,18 +260,18 @@ const testService = new UserService(mockDb); // 쉽게 교체 가능!
 - **상태가 자주 변하는 객체**: 전역 상태 문제 발생
 - **테스트가 중요한 컴포넌트**: Mock 교체가 어려움
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 인스턴스가 하나임을 보장 | 테스트하기 어렵다 |
-| 전역 접근점 제공 | 숨겨진 의존성 |
+| 장점                         | 단점                                     |
+| ---------------------------- | ---------------------------------------- |
+| 인스턴스가 하나임을 보장     | 테스트하기 어렵다                        |
+| 전역 접근점 제공             | 숨겨진 의존성                            |
 | 리소스 절약 (한 번만 초기화) | SRP 위반 (인스턴스 관리 + 비즈니스 로직) |
-| 지연 초기화(Lazy) 가능 | 멀티스레드 환경에서 동기화 필요 |
+| 지연 초기화(Lazy) 가능       | 멀티스레드 환경에서 동기화 필요          |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -290,7 +289,7 @@ Singleton은 **"인스턴스를 딱 하나만"** 보장하는 패턴이다.
 
 이것으로 **Creational 패턴** 5개를 모두 다뤘다. 다음 글부터는 **Structural 패턴**으로 넘어가서, 기존 클래스들을 조합하는 방법을 알아보겠다. 첫 번째는 **Adapter** 패턴이다.
 
----
+## visible: false
 
 # Reference
 

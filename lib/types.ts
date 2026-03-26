@@ -13,6 +13,7 @@ export interface PostFrontmatter {
   thumbnail?: string;
   featured?: boolean;
   draft?: boolean;
+  visible?: boolean;
 }
 
 export interface Post {

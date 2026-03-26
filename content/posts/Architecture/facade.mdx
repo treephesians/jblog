@@ -1,7 +1,7 @@
 ---
 title: "Facade 패턴"
 description: "복잡한 서브시스템을 간단한 인터페이스 뒤에 숨기는 Facade 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "structural", "architecture"]
 thumbnail: "/images/thumbnails/facade.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 10
+visible: false
 ---
 
 # 홈시어터 리모컨
@@ -31,7 +32,7 @@ series:
 
 이것이 **Facade** 패턴이다. 복잡한 시스템을 **하나의 간단한 인터페이스** 뒤에 숨기는 것.
 
----
+## visible: false
 
 ## Facade란?
 
@@ -41,7 +42,7 @@ series:
 
 핵심은 **복잡한 내부를 알 필요 없이 쉽게 사용할 수 있게** 해주는 것이다.
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -137,10 +138,7 @@ class OrderFacade {
     );
 
     // 6. 포인트 적립
-    await this.loyalty.addPoints(
-      input.userId,
-      Math.floor(input.amount * 0.01),
-    );
+    await this.loyalty.addPoints(input.userId, Math.floor(input.amount * 0.01));
 
     // 7. 분석
     await this.analytics.trackPurchase(
@@ -179,7 +177,7 @@ console.log(`주문 완료! 주문번호: ${result.orderId}`);
 
 클라이언트는 `OrderFacade.placeOrder()` 하나만 알면 된다. 내부에서 7개의 서비스가 어떻게 상호작용하는지는 몰라도 된다.
 
----
+## visible: false
 
 ## 우리가 이미 쓰고 있는 Facade
 
@@ -222,7 +220,7 @@ Express 서버 설정, CORS, 파싱 등을 Next.js가 Facade로 감춰준다.
 const [count, setCount] = useState(0);
 ```
 
----
+## visible: false
 
 ## Facade vs 그냥 함수 하나 만드는 것?
 
@@ -238,7 +236,7 @@ Facade가 별도의 클래스로 의미 있는 경우는,
 
 그게 아니라면 함수 하나로도 충분히 Facade의 역할을 한다.
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -251,17 +249,17 @@ Facade가 별도의 클래스로 의미 있는 경우는,
 3. **서브시스템을 레이어로 분리하고 싶을 때**
    - 각 레이어의 진입점으로 Facade 제공
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 복잡한 시스템을 단순하게 사용 | Facade가 모든 것을 아는 "God Object"가 될 수 있음 |
-| 클라이언트와 서브시스템의 결합도 감소 | 추가 추상 레이어 |
-| 서브시스템 변경의 영향을 최소화 | |
+| 장점                                  | 단점                                              |
+| ------------------------------------- | ------------------------------------------------- |
+| 복잡한 시스템을 단순하게 사용         | Facade가 모든 것을 아는 "God Object"가 될 수 있음 |
+| 클라이언트와 서브시스템의 결합도 감소 | 추가 추상 레이어                                  |
+| 서브시스템 변경의 영향을 최소화       |                                                   |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -277,7 +275,7 @@ Facade는 **복잡한 것을 간단하게 보여주는** 패턴이다.
 
 다음 글에서는 메모리를 효율적으로 관리하는 **Flyweight** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

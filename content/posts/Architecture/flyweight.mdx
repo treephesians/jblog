@@ -1,7 +1,7 @@
 ---
 title: "Flyweight 패턴"
 description: "공유를 통해 대량의 객체를 메모리 효율적으로 다루는 Flyweight 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "structural", "architecture"]
 thumbnail: "/images/thumbnails/flyweight.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 11
+visible: false
 ---
 
 # 나무 100만 개를 어떻게 렌더링하지?
@@ -20,9 +21,9 @@ series:
 ```typescript
 class Tree {
   // 공통 데이터 (모든 소나무가 같은 값)
-  mesh: Mesh;          // 3D 모델 — 약 5MB
-  texture: Texture;    // 텍스처 — 약 2MB
-  barkColor: string;   // 나무껍질 색상
+  mesh: Mesh; // 3D 모델 — 약 5MB
+  texture: Texture; // 텍스처 — 약 2MB
+  barkColor: string; // 나무껍질 색상
 
   // 개별 데이터 (나무마다 다른 값)
   x: number;
@@ -44,7 +45,7 @@ class Tree {
 
 공통 데이터를 **공유**하면 메모리를 극적으로 줄일 수 있다. 이것이 **Flyweight** 패턴이다.
 
----
+## visible: false
 
 ## Flyweight란?
 
@@ -55,7 +56,7 @@ class Tree {
 - **Intrinsic State (내재 상태)**: 객체 간에 공유 가능한 불변 데이터 → 3D 모델, 텍스처
 - **Extrinsic State (외재 상태)**: 객체마다 고유한 데이터 → 위치, 크기, 회전
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -86,7 +87,7 @@ const trees = Array.from({ length: 1_000_000 }, () =>
 class TreeType {
   constructor(
     public readonly name: string,
-    public readonly mesh: Mesh,       // 5MB
+    public readonly mesh: Mesh, // 5MB
     public readonly texture: Texture, // 2MB
     public readonly color: string,
   ) {}
@@ -101,7 +102,12 @@ class TreeType {
 class TreeTypeFactory {
   private static types = new Map<string, TreeType>();
 
-  static getTreeType(name: string, mesh: Mesh, texture: Texture, color: string): TreeType {
+  static getTreeType(
+    name: string,
+    mesh: Mesh,
+    texture: Texture,
+    color: string,
+  ): TreeType {
     const key = `${name}-${color}`;
 
     if (!this.types.has(key)) {
@@ -136,20 +142,44 @@ class Tree {
 
 ```typescript
 // 나무 종류는 몇 가지뿐
-const pineType = TreeTypeFactory.getTreeType("소나무", pineMesh, pineTexture, "#2D5016");
-const oakType = TreeTypeFactory.getTreeType("참나무", oakMesh, oakTexture, "#4A7023");
+const pineType = TreeTypeFactory.getTreeType(
+  "소나무",
+  pineMesh,
+  pineTexture,
+  "#2D5016",
+);
+const oakType = TreeTypeFactory.getTreeType(
+  "참나무",
+  oakMesh,
+  oakTexture,
+  "#4A7023",
+);
 
 // 100만 개의 나무 생성 — 하지만 TreeType은 2개뿐!
 const forest: Tree[] = [];
 
 for (let i = 0; i < 500_000; i++) {
-  forest.push(new Tree(pineType, Math.random() * 10000, Math.random() * 10000, 0.8 + Math.random() * 0.4));
+  forest.push(
+    new Tree(
+      pineType,
+      Math.random() * 10000,
+      Math.random() * 10000,
+      0.8 + Math.random() * 0.4,
+    ),
+  );
 }
 for (let i = 0; i < 500_000; i++) {
-  forest.push(new Tree(oakType, Math.random() * 10000, Math.random() * 10000, 0.8 + Math.random() * 0.4));
+  forest.push(
+    new Tree(
+      oakType,
+      Math.random() * 10000,
+      Math.random() * 10000,
+      0.8 + Math.random() * 0.4,
+    ),
+  );
 }
 
-console.log(`나무 수: ${forest.length}`);          // 1,000,000
+console.log(`나무 수: ${forest.length}`); // 1,000,000
 console.log(`TreeType 수: ${TreeTypeFactory.typeCount}`); // 2
 ```
 
@@ -162,7 +192,7 @@ console.log(`TreeType 수: ${TreeTypeFactory.typeCount}`); // 2
 
 ![메모리 절약](https://media.giphy.com/media/yJFeycRK2DB4c/giphy.gif)
 
----
+## visible: false
 
 ## 웹 개발에서의 Flyweight
 
@@ -206,7 +236,7 @@ console.log(a === b); // true — 같은 메모리를 참조
 // 엔진이 동일한 문자열을 하나만 저장하고 공유한다 (string interning)
 ```
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -219,18 +249,18 @@ console.log(a === b); // true — 같은 메모리를 참조
 3. **메모리가 제한된 환경에서**
    - 모바일 앱, 임베디드 시스템
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 메모리를 극적으로 절약 | 코드 복잡도 증가 |
-| 공유 데이터 변경 시 모든 객체에 반영 | extrinsic state 관리가 필요 |
-| | 공유 상태는 반드시 불변이어야 함 |
-| | 소수의 객체에는 오히려 오버헤드 |
+| 장점                                 | 단점                             |
+| ------------------------------------ | -------------------------------- |
+| 메모리를 극적으로 절약               | 코드 복잡도 증가                 |
+| 공유 데이터 변경 시 모든 객체에 반영 | extrinsic state 관리가 필요      |
+|                                      | 공유 상태는 반드시 불변이어야 함 |
+|                                      | 소수의 객체에는 오히려 오버헤드  |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -244,7 +274,7 @@ Flyweight는 **공유를 통해 메모리를 절약**하는 패턴이다.
 
 다음 글에서는 Structural 패턴의 마지막, 객체에 대한 접근을 제어하는 **Proxy** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 

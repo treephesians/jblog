@@ -1,7 +1,7 @@
 ---
 title: "Bridge 패턴"
 description: "추상화와 구현을 분리하여 독립적으로 확장하는 Bridge 패턴을 알아봅니다."
-date: "2026-03-23"
+date: "2026-01-23"
 category: "Architecture"
 tags: ["design-pattern", "structural", "architecture"]
 thumbnail: "/images/thumbnails/bridge.png"
@@ -9,6 +9,7 @@ series:
   name: "Guru 디자인 패턴"
   slug: "guru-design-patterns"
   order: 7
+visible: false
 ---
 
 # 클래스가 폭발한다
@@ -44,7 +45,7 @@ Notification
 
 Bridge 패턴은 이 문제를 해결한다.
 
----
+## visible: false
 
 ## Bridge란?
 
@@ -62,7 +63,7 @@ Bridge 패턴은 이 문제를 해결한다.
 
 종류 3개 × 채널 4개 = 조합 12가지인데, 클래스는 3 + 4 = **7개**면 된다.
 
----
+## visible: false
 
 ## 코드로 보기
 
@@ -70,12 +71,24 @@ Bridge 패턴은 이 문제를 해결한다.
 
 ```typescript
 // 조합마다 클래스가 필요하다...
-class UrgentEmailNotification { /* ... */ }
-class UrgentSMSNotification { /* ... */ }
-class UrgentSlackNotification { /* ... */ }
-class NormalEmailNotification { /* ... */ }
-class NormalSMSNotification { /* ... */ }
-class NormalSlackNotification { /* ... */ }
+class UrgentEmailNotification {
+  /* ... */
+}
+class UrgentSMSNotification {
+  /* ... */
+}
+class UrgentSlackNotification {
+  /* ... */
+}
+class NormalEmailNotification {
+  /* ... */
+}
+class NormalSMSNotification {
+  /* ... */
+}
+class NormalSlackNotification {
+  /* ... */
+}
 // 🤯 새 채널 추가할 때마다 클래스가 계속 늘어난다
 ```
 
@@ -172,7 +185,7 @@ scheduledSms.notify("010-1234-5678", "내일 회의 있습니다");
 
 경고 알림을 추가하고 싶으면? `WarningNotification`만 만들면 된다. 마찬가지로 기존 코드 수정 0.
 
----
+## visible: false
 
 ## Bridge vs Strategy?
 
@@ -180,14 +193,14 @@ scheduledSms.notify("010-1234-5678", "내일 회의 있습니다");
 
 둘 다 인터페이스를 통해 구현을 교체한다. 하지만 **의도**가 다르다.
 
-| | Bridge | Strategy |
-|---|---|---|
-| **목적** | 추상화와 구현을 분리하여 **독립적으로 확장** | 알고리즘을 **교체** 가능하게 |
-| **구조** | 두 계층 모두 확장됨 | 컨텍스트는 고정, 전략만 교체 |
-| **설계 시점** | 설계 초기에 구조를 나눔 | 기존 코드에 유연성을 추가 |
-| **비유** | 리모컨(추상) + TV(구현) | 네비앱에서 경로 알고리즘 변경 |
+|               | Bridge                                       | Strategy                      |
+| ------------- | -------------------------------------------- | ----------------------------- |
+| **목적**      | 추상화와 구현을 분리하여 **독립적으로 확장** | 알고리즘을 **교체** 가능하게  |
+| **구조**      | 두 계층 모두 확장됨                          | 컨텍스트는 고정, 전략만 교체  |
+| **설계 시점** | 설계 초기에 구조를 나눔                      | 기존 코드에 유연성을 추가     |
+| **비유**      | 리모컨(추상) + TV(구현)                      | 네비앱에서 경로 알고리즘 변경 |
 
----
+## visible: false
 
 ## 언제 사용하면 좋을까?
 
@@ -203,18 +216,18 @@ scheduledSms.notify("010-1234-5678", "내일 회의 있습니다");
 4. **플랫폼 독립적인 코드를 작성할 때**
    - React Native에서 iOS/Android 렌더링 분리
 
----
+## visible: false
 
 ## 장단점
 
-| 장점 | 단점 |
-|------|------|
-| 클래스 폭발 방지 (M×N → M+N) | 초기 설계가 복잡할 수 있음 |
+| 장점                            | 단점                            |
+| ------------------------------- | ------------------------------- |
+| 클래스 폭발 방지 (M×N → M+N)    | 초기 설계가 복잡할 수 있음      |
 | 추상화와 구현을 독립적으로 확장 | 단일 변화 축이면 오버엔지니어링 |
-| 런타임에 구현 교체 가능 | 간접 참조가 늘어남 |
-| OCP 준수 | |
+| 런타임에 구현 교체 가능         | 간접 참조가 늘어남              |
+| OCP 준수                        |                                 |
 
----
+## visible: false
 
 ## 정리하며
 
@@ -228,7 +241,7 @@ Bridge는 **두 차원의 변화를 분리해서 독립적으로 확장**하는 
 
 다음 글에서는 객체들을 트리 구조로 구성하는 **Composite** 패턴을 알아보겠다.
 
----
+## visible: false
 
 # Reference
 
