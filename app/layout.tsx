@@ -8,6 +8,7 @@ import { LoginModalProvider } from "@/providers/login-modal-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { siteConfig } from "@/lib/site";
 import { Toaster } from "sonner";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const geistSans = localFont({

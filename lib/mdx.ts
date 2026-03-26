@@ -1,9 +1,11 @@
 import { compileMDX } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { remarkLinkCard } from "./remark-link-card";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypePrettyCode from "rehype-pretty-code";
+import rehypeKatex from "rehype-katex";
 import type { PostFrontmatter } from "./types";
 import { mdxComponents } from "@/components/mdx-components";
 
@@ -14,7 +16,7 @@ export async function compileMdxContent(source: string) {
     options: {
       parseFrontmatter: true,
       mdxOptions: {
-        remarkPlugins: [remarkGfm, remarkLinkCard],
+        remarkPlugins: [remarkGfm, remarkMath, remarkLinkCard],
         rehypePlugins: [
           rehypeSlug,
           [rehypeAutolinkHeadings, { behavior: "wrap" }],
@@ -25,6 +27,7 @@ export async function compileMdxContent(source: string) {
               keepBackground: false,
             },
           ],
+          rehypeKatex,
         ],
       },
     },
